@@ -397,13 +397,16 @@ def stock_brokers(sid: str, start: str, end: str):
                 r = tb.iloc[:,[5,6,7]].copy(); r.columns=["券商","買","賣"]
                 df_all = pd.concat([df_all,l,r], ignore_index=True)
         if df_all.empty: return []
-        df_all = df_all.dropna()
-        df_all = df_all[~df_all["券商"].str.contains("券商|合計|平均|說明|註", na=False)]
+        df_all = df_all.dropna(subset=["券商"])
+        df_all = df_all[~df_all["券商"].astype(str).str.contains("券商|合計|平均|說明|註", na=False)]
         for c in ["買","賣"]:
             df_all[c] = pd.to_numeric(df_all[c].astype(str).str.replace(",",""), errors="coerce").fillna(0)
         df_all["合計"] = df_all["買"] + df_all["賣"]
+        df_all = df_all[df_all["合計"] > 0].copy()
         df_all["買進%"] = (df_all["買"]/df_all["合計"]*100).round(1)
         df_all["賣出%"] = (df_all["賣"]/df_all["合計"]*100).round(1)
+        # 清除 NaN/Inf 避免 JSON 序列化錯誤
+        df_all = df_all.replace([float('inf'), float('-inf')], 0).fillna(0)
         return df_all.to_dict(orient="records")
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -437,19 +440,41 @@ def broker_history(sid: str, br_id: str, start: str = "2015-01-01"):
         raise HTTPException(500, str(e))
 
 @app.get("/api/stock/kline")
+@app.get("/api/stock/kline")
 def stock_kline(sid: str, start: str = "2015-01-01"):
     """TAB4：K線資料（yfinance）"""
+    import math
     end = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
     for suffix in [".TW", ".TWO"]:
         ticker = f"{sid}{suffix}"
-        df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=False)
-        if not df.empty:
-            df.columns = [col[0] if isinstance(col, tuple) else col for col in df.columns]
+        try:
+            df = yf.download(ticker, start=start, end=end, progress=False,
+                             auto_adjust=False, repair=False)
+            if df.empty: continue
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = [col[0] for col in df.columns]
             df.reset_index(inplace=True)
+            if "Date" not in df.columns: continue
             df["Date"] = pd.to_datetime(df["Date"]).dt.tz_localize(None).dt.strftime("%Y-%m-%d")
-            cols = ["Date","Open","High","Low","Close"]
-            result = df[cols].dropna(subset=["Close"]).to_dict(orient="records")
-            return {"suffix": suffix, "data": result}
+            df = df.dropna(subset=["Close"])
+            if df.empty: continue
+            # 清除 NaN/Inf
+            for c in ["Open","High","Low","Close"]:
+                if c in df.columns:
+                    df[c] = pd.to_numeric(df[c], errors="coerce")
+            df = df.replace([float('inf'), float('-inf')], None).dropna(subset=["Close"])
+            cols = [c for c in ["Date","Open","High","Low","Close"] if c in df.columns]
+            result = []
+            for _, row in df[cols].iterrows():
+                rec = {}
+                for c in cols:
+                    v = row[c]
+                    rec[c] = None if (v is None or (isinstance(v, float) and math.isnan(v))) else v
+                result.append(rec)
+            if result:
+                return {"suffix": suffix, "data": result}
+        except Exception:
+            continue
     raise HTTPException(404, f"找不到 {sid} 的K線資料")
 
 # ==========================================
