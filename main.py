@@ -440,7 +440,6 @@ def broker_history(sid: str, br_id: str, start: str = "2015-01-01"):
         raise HTTPException(500, str(e))
 
 @app.get("/api/stock/kline")
-@app.get("/api/stock/kline")
 def stock_kline(sid: str, start: str = "2015-01-01"):
     """TAB4：K線資料（yfinance）"""
     import math
