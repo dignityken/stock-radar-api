@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📡 stock-radar</title>
+<script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+/* ── Reset & Base ── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e1117;--bg2:#1a1d27;--bg3:#262b38;
+  --border:#2e3347;--text:#d1d4dc;--text2:#8a8d9d;
+  --accent:#2962FF;--red:#ef5350;--green:#26a69a;
+  --yellow:#FFD600;--sidebar:280px;
+}
+body{background:var(--bg);color:var(--text);font-family:"Microsoft JhengHei",sans-serif;min-height:100vh}
+input,select,button{font-family:inherit}
+button{cursor:pointer}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── Login ── */
+#login-screen{
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;background:var(--bg);
+}
+.login-box{
+  width:380px;padding:40px;background:var(--bg2);
+  border-radius:12px;border:1px solid var(--border);
+}
+.login-title{text-align:center;font-size:1.8rem;font-weight:700;color:var(--accent);margin-bottom:6px}
+.login-sub{text-align:center;color:var(--text2);font-size:.9rem;margin-bottom:28px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:.85rem;color:var(--text2);margin-bottom:6px}
+.form-group input{
+  width:100%;padding:10px 14px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.95rem;
+}
+.form-group input:focus{outline:none;border-color:var(--accent)}
+.btn-primary{
+  width:100%;padding:11px;background:var(--accent);color:#fff;
+  border:none;border-radius:6px;font-size:1rem;font-weight:600;
+  transition:background .2s;
+}
+.btn-primary:hover{background:#1a45cc}
+.login-error{color:var(--red);font-size:.85rem;text-align:center;margin-top:10px;min-height:20px}
+
+/* ── App Layout ── */
+#app{display:none;height:100vh;overflow:hidden}
+.app-layout{display:flex;height:100vh}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;
+}
+.sidebar-header{padding:16px;border-bottom:1px solid var(--border)}
+.sidebar-user{font-weight:600;font-size:.95rem;margin-bottom:2px}
+.sidebar-role{font-size:.75rem;color:var(--text2)}
+.sidebar-nav{padding:12px 8px;border-bottom:1px solid var(--border)}
+.nav-btn{
+  display:block;width:100%;padding:9px 12px;margin-bottom:4px;
+  background:transparent;border:none;border-radius:6px;
+  color:var(--text2);text-align:left;font-size:.9rem;transition:all .15s;
+}
+.nav-btn:hover{background:var(--bg3);color:var(--text)}
+.nav-btn.active{background:var(--accent);color:#fff}
+.sidebar-vip{flex:1;overflow-y:auto;padding:8px}
+.sidebar-logout{padding:12px;border-top:1px solid var(--border)}
+.btn-logout{
+  width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);
+  border-radius:6px;color:var(--text2);font-size:.85rem;
+}
+.btn-logout:hover{border-color:var(--red);color:var(--red)}
+
+/* ── Main Content ── */
+.main-content{flex:1;overflow-y:auto;padding:20px 24px}
+
+/* ── Section Title ── */
+.section-title{font-size:1.2rem;font-weight:700;margin-bottom:16px;
+  padding-bottom:10px;border-bottom:1px solid var(--border)}
+
+/* ── Form Controls ── */
+.ctrl-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;align-items:flex-end}
+.ctrl-group{display:flex;flex-direction:column;gap:4px}
+.ctrl-group label{font-size:.8rem;color:var(--text2)}
+.ctrl-group select,.ctrl-group input[type=text],.ctrl-group input[type=date]{
+  padding:8px 10px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:6px;color:var(--text);font-size:.9rem;min-width:140px;
+}
+.ctrl-group select:focus,.ctrl-group input:focus{outline:none;border-color:var(--accent)}
+.radio-group{display:flex;gap:6px}
+.radio-group label{
+  padding:6px 12px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:6px;font-size:.85rem;cursor:pointer;
+}
+.radio-group input[type=radio]{display:none}
+.radio-group input[type=radio]:checked+label{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-search{
+  padding:8px 20px;background:var(--accent);color:#fff;
+  border:none;border-radius:6px;font-weight:600;font-size:.9rem;
+}
+.btn-search:hover{background:#1a45cc}
+.btn-secondary{
+  padding:8px 16px;background:var(--bg3);color:var(--text);
+  border:1px solid var(--border);border-radius:6px;font-size:.85rem;
+}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── Table ── */
+.table-wrap{overflow-x:auto;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{
+  padding:8px 10px;background:var(--bg3);color:var(--text2);
+  text-align:left;font-weight:600;white-space:nowrap;
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1;
+}
+td{padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+tr:hover td{background:rgba(255,255,255,.03)}
+.badge{
+  display:inline-block;padding:2px 8px;border-radius:10px;
+  font-size:.75rem;font-weight:600;
+}
+.badge-buy{background:rgba(239,83,80,.15);color:var(--red)}
+.badge-sell{background:rgba(38,166,154,.15);color:var(--green)}
+.link-btn{
+  color:var(--accent);text-decoration:none;font-size:.8rem;
+  padding:2px 6px;border:1px solid var(--accent);border-radius:4px;
+}
+.link-btn:hover{background:var(--accent);color:#fff}
+
+/* ── Status / Loading ── */
+.status-msg{
+  padding:12px 16px;border-radius:6px;margin-bottom:12px;font-size:.9rem;
+}
+.status-info{background:rgba(41,98,255,.1);border:1px solid rgba(41,98,255,.3);color:#90b0ff}
+.status-error{background:rgba(239,83,80,.1);border:1px solid rgba(239,83,80,.3);color:#ff9090}
+.status-success{background:rgba(38,166,154,.1);border:1px solid rgba(38,166,154,.3);color:#90e0d8}
+.loading{
+  display:flex;align-items:center;gap:10px;color:var(--text2);
+  padding:20px;justify-content:center;
+}
+.spinner{
+  width:20px;height:20px;border:2px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── TAB4 K線圖 ── */
+.chart-controls{
+  display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;
+  padding:12px;background:var(--bg2);border-radius:8px;margin-bottom:12px;
+}
+#chart-wrapper{
+  position:relative;width:100%;height:calc(100vh - 280px);min-height:400px;
+  background:var(--bg);border-radius:8px;overflow:hidden;
+}
+#chart-container{width:100%;height:100%}
+.chart-legend{
+  position:absolute;left:12px;top:12px;z-index:99;
+  background:rgba(14,17,23,.9);padding:10px 14px;border-radius:6px;
+  border:1px solid var(--border);font-size:.8rem;pointer-events:none;
+  max-width:240px;
+}
+.legend-title{color:var(--accent);font-weight:700;font-size:.9rem;margin-bottom:6px;
+  border-bottom:1px solid var(--border);padding-bottom:4px}
+.legend-row{display:flex;justify-content:space-between;gap:12px;margin-bottom:2px}
+.legend-lbl{color:var(--text2)}
+.legend-vol{margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font-weight:700}
+.legend-macd{margin-top:4px;font-size:.75rem;color:var(--text2);line-height:1.4}
+
+/* ── Watchlist / WorkingGroup ── */
+.list-tabs{display:flex;gap:4px;margin-bottom:12px}
+.list-tab{
+  padding:6px 16px;border-radius:6px;border:1px solid var(--border);
+  background:var(--bg2);color:var(--text2);font-size:.85rem;
+}
+.list-tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.wl-table input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
+.note-input{
+  background:transparent;border:none;color:var(--text);font-size:.85rem;
+  width:100%;outline:none;
+}
+.note-input:focus{border-bottom:1px solid var(--accent)}
+
+/* ── VIP 側邊欄 ── */
+.vip-section{padding:4px 0}
+.vip-title{font-size:.8rem;color:var(--text2);font-weight:600;
+  padding:6px 4px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.vip-form{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.vip-form label{font-size:.75rem;color:var(--text2)}
+.vip-form select,.vip-form input[type=range]{width:100%}
+.vip-form input[type=range]{accent-color:var(--accent)}
+.vip-row{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text2)}
+.vip-apply-btn{
+  width:100%;padding:6px;background:var(--accent);color:#fff;
+  border:none;border-radius:4px;font-size:.8rem;font-weight:600;
+}
+.vip-table{width:100%;border-collapse:collapse;font-size:.75rem}
+.vip-table th{color:var(--text2);padding:4px;border-bottom:1px solid var(--border);font-weight:600}
+.vip-table td{padding:4px;border-bottom:1px solid var(--border)}
+.vip-table tr:hover td{background:rgba(255,255,255,.03)}
+.vip-add-btn{
+  width:100%;padding:5px;margin-top:6px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:4px;color:var(--text2);font-size:.75rem;
+}
+.vip-add-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .sidebar{width:100%;height:auto;flex-direction:row;flex-wrap:wrap}
+  .app-layout{flex-direction:column}
+  .main-content{padding:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-title">📡 stock-radar</div>
+    <div class="login-sub">分點追蹤平台</div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="your@email.com" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>密碼</label>
+      <input type="password" id="login-pwd" placeholder="輸入密碼" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="login-btn">🔐 登入</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ══════════════ APP ══════════════ -->
+<div id="app">
+  <div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-user" id="sb-username">載入中...</div>
+        <div class="sidebar-role" id="sb-role"></div>
+      </div>
+      <div class="sidebar-nav">
+        <button class="nav-btn active" data-tab="t1">🚀 特定分點</button>
+        <button class="nav-btn" data-tab="t2">📊 股票代號</button>
+        <button class="nav-btn" data-tab="t3">📍 地緣券商</button>
+        <button class="nav-btn" data-tab="t4">📈 K線圖</button>
+      </div>
+      <!-- VIP 掃描清單 -->
+      <div class="sidebar-vip" id="vip-panel" style="display:none">
+        <div class="vip-title">📡 VIP 掃描清單</div>
+        <div class="vip-form" id="vip-filter-form">
+          <div>
+            <label>K線週期</label>
+            <select id="vip-period">
+              <option value="ScanResult">日線</option>
+              <option value="ScanResult_W">週線</option>
+            </select>
+          </div>
+          <div>
+            <div class="vip-row"><label>最近天數</label><span id="vip-days-val">60</span></div>
+            <input type="range" id="vip-days" min="7" max="365" value="60" step="7">
+          </div>
+          <div>
+            <label>方向</label>
+            <select id="vip-dir">
+              <option>全部</option><option>買進</option><option>賣出</option>
+            </select>
+          </div>
+          <div>
+            <div class="vip-row"><label>最低強度</label><span id="vip-score-val">60</span></div>
+            <input type="range" id="vip-score" min="0" max="120" value="60" step="5">
+          </div>
+          <div>
+            <div class="vip-row"><label>最低佔比%</label><span id="vip-pct-val">60</span></div>
+            <input type="range" id="vip-pct" min="0" max="100" value="60" step="5">
+          </div>
+          <div>
+            <label>分點過濾</label>
+            <select id="vip-broker-sel"><option>全部分點</option></select>
+          </div>
+          <button class="vip-apply-btn" id="vip-apply-btn">🔍 套用篩選</button>
+        </div>
+        <div id="vip-caption" style="font-size:.75rem;color:var(--text2);margin-bottom:4px"></div>
+        <div id="vip-table-wrap"></div>
+        <div id="vip-sel-wrap" style="margin-top:6px"></div>
+      </div>
+      <div class="sidebar-logout">
+        <button class="btn-logout" id="logout-btn">登出</button>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main-content" id="main-content">
+
+      <!-- TAB1: 特定分點 -->
+      <div id="tab-t1">
+        <div class="section-title">🚀 特定分點</div>
+        <div class="ctrl-row">
+          <div class="ctrl-group">
+            <label>券商</label>
+            <select id="t1-hq" style="min-width:160px"></select>
+          </div>
+          <div class="ctrl-group">
+            <label>分點</label>
+            <select id="t1-br" style="min-width:180px"></select>
+          </div>
+          <div class="ctrl-group">
+            <label>起始</label>
+            <input type="date" id="t1-sd">
+          </div>
+          <div class="ctrl-group">
+            <label>結束</label>
+            <input type="date" id="t1-ed">
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-group">
+            <label>統計單位</label>
+            <div class="radio-group">
+              <input type="radio" name="t1-unit" id="t1-shares" value="shares" checked>
+              <label for="t1-shares">張數</label>
+              <input type="radio" name="t1-unit" id="t1-amount" value="amount">
+              <label for="t1-amount">金額</label>
+            </div>
+          </div>
+          <div class="ctrl-group">
+            <label>篩選模式</label>
+            <div class="radio-group">
+              <input type="radio" name="t1-mode" id="t1-strict" value="strict">
+              <label for="t1-strict">嚴格</label>
+              <input type="radio" name="t1-mode" id="t1-filter" value="filter" checked>
+              <label for="t1-filter">濾網</label>
+            </div>
+          </div>
+          <div class="ctrl-group">
+            <label>佔比 >= %</label>
+            <input type="number" id="t1-pct" value="95" min="0" max="100" style="width:80px">
+          </div>
+          <button class="btn-search" id="t1-search-btn">🚀 開始尋寶</button>
+        </div>
+        <div id="t1-status"></div>
+        <div id="t1-buy-wrap"></div>
+        <div id="t1-sell-wrap"></div>
+      </div>
+
+      <!-- TAB2: 股票代號 -->
+      <div id="tab-t2" style="display:none">
+        <div class="section-title">📊 股票代號 — 誰在買賣這檔股票？</div>
+        <div class="ctrl-row">
+          <div class="ctrl-group">
+            <label>股票代號</label>
+            <input type="text" id="t2-sid" value="2408" style="width:100px">
+          </div>
+          <div class="ctrl-group">
+            <label>起始</label>
+            <input type="date" id="t2-sd">
+          </div>
+          <div class="ctrl-group">
+            <label>結束</label>
+            <input type="date" id="t2-ed">
+          </div>
+          <div class="ctrl-group">
+            <label>模式</label>
+            <div class="radio-group">
+              <input type="radio" name="t2-mode" id="t2-strict" value="strict">
+              <label for="t2-strict">嚴格</label>
+              <input type="radio" name="t2-mode" id="t2-filter" value="filter" checked>
+              <label for="t2-filter">濾網</label>
+            </div>
+          </div>
+          <div class="ctrl-group">
+            <label>門檻佔比%</label>
+            <input type="number" id="t2-pct" value="95" min="0" max="100" style="width:80px">
+          </div>
+          <div class="ctrl-group">
+            <label>最低張數</label>
+            <input type="number" id="t2-vol" value="10" min="0" style="width:80px">
+          </div>
+          <button class="btn-search" id="t2-search-btn">🚀 開始追蹤</button>
+        </div>
+        <div id="t2-status"></div>
+        <div id="t2-buy-wrap"></div>
+        <div id="t2-sell-wrap"></div>
+      </div>
+
+      <!-- TAB3: 地緣券商 -->
+      <div id="tab-t3" style="display:none">
+        <div class="section-title">📍 地緣券商</div>
+        <div class="ctrl-row">
+          <div class="ctrl-group">
+            <label>地緣關鍵字</label>
+            <select id="t3-loc" style="min-width:120px"></select>
+          </div>
+          <div class="ctrl-group">
+            <label>特定分點</label>
+            <select id="t3-br" style="min-width:180px"></select>
+          </div>
+          <div class="ctrl-group">
+            <label>起始</label>
+            <input type="date" id="t3-sd">
+          </div>
+          <div class="ctrl-group">
+            <label>結束</label>
+            <input type="date" id="t3-ed">
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-group">
+            <label>統計單位</label>
+            <div class="radio-group">
+              <input type="radio" name="t3-unit" id="t3-shares" value="shares" checked>
+              <label for="t3-shares">張數</label>
+              <input type="radio" name="t3-unit" id="t3-amount" value="amount">
+              <label for="t3-amount">金額</label>
+            </div>
+          </div>
+          <div class="ctrl-group">
+            <label>篩選模式</label>
+            <div class="radio-group">
+              <input type="radio" name="t3-mode" id="t3-strict" value="strict">
+              <label for="t3-strict">嚴格</label>
+              <input type="radio" name="t3-mode" id="t3-filter" value="filter" checked>
+              <label for="t3-filter">濾網</label>
+            </div>
+          </div>
+          <div class="ctrl-group">
+            <label>佔比 >= %</label>
+            <input type="number" id="t3-pct" value="95" min="0" max="100" style="width:80px">
+          </div>
+          <button class="btn-search" id="t3-search-btn">📡 啟動雷達</button>
+        </div>
+        <div id="t3-status"></div>
+        <div id="t3-buy-wrap"></div>
+        <div id="t3-sell-wrap"></div>
+      </div>
+
+      <!-- TAB4: K線圖 -->
+      <div id="tab-t4" style="display:none">
+        <div class="chart-controls">
+          <div class="ctrl-group">
+            <label>股票代號</label>
+            <input type="text" id="t4-sid" value="6488" style="width:90px">
+          </div>
+          <div class="ctrl-group" style="flex:1">
+            <label>搜尋分點</label>
+            <select id="t4-br" style="width:100%"></select>
+          </div>
+          <div class="ctrl-group">
+            <label>週期</label>
+            <div class="radio-group">
+              <input type="radio" name="t4-period" id="t4-d" value="D" checked><label for="t4-d">日</label>
+              <input type="radio" name="t4-period" id="t4-w" value="W"><label for="t4-w">週</label>
+              <input type="radio" name="t4-period" id="t4-m" value="M"><label for="t4-m">月</label>
+            </div>
+          </div>
+          <div class="ctrl-group">
+            <label>K棒數</label>
+            <select id="t4-days">
+              <option value="300">300</option>
+              <option value="500">500</option>
+              <option value="1000">1000</option>
+            </select>
+          </div>
+          <div class="ctrl-group">
+            <label>下載範圍</label>
+            <select id="t4-start">
+              <option value="2015-01-01">2015起 (快)</option>
+              <option value="2000-01-01">2000起 (慢)</option>
+            </select>
+          </div>
+          <button class="btn-search" id="t4-draw-btn">🎨 繪圖</button>
+          <button class="btn-secondary" id="t4-fav-btn">❤️ 存入最愛</button>
+        </div>
+        <div id="t4-status"></div>
+        <!-- 最愛 / 工作組 -->
+        <div class="list-tabs">
+          <button class="list-tab active" id="tab-wl-btn">⭐ 最愛 <span id="wl-count">(0)</span></button>
+          <button class="list-tab" id="tab-wg-btn">🗂️ 工作組 <span id="wg-count">(0)</span></button>
+        </div>
+        <div id="wl-panel">
+          <div id="wl-table-wrap"></div>
+        </div>
+        <div id="wg-panel" style="display:none">
+          <div id="wg-table-wrap"></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn-secondary" id="wg-clear-btn">🗑️ 清空工作組</button>
+            <button class="btn-secondary" id="wg-fav-btn">❤️ 勾選存入最愛</button>
+          </div>
+        </div>
+        <div id="chart-wrapper" style="display:none">
+          <div id="chart-container"></div>
+          <div class="chart-legend" id="chart-legend">將滑鼠移至K線上查看數據</div>
+        </div>
+      </div>
+
+    </div><!-- /main-content -->
+  </div><!-- /app-layout -->
+</div><!-- /app -->
+
+<script>
+// ══════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════
+const API = 'https://stock-radar-api-ky4l.onrender.com';
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let token = localStorage.getItem('sr_token') || '';
+let username = localStorage.getItem('sr_username') || '';
+let userRole = localStorage.getItem('sr_role') || '';
+let brokerTree = {};   // {hq_name: {bid, branches:[...]}}
+let brokerMap = {};    // {br_name: {hq_id, br_id, hq_name}}
+let geoMap = {};       // {loc: [br_names]}
+let watchlist = [];
+let workingGroup = [];
+let vipScanData = [];
+let vipFiltered = [];
+let currentChart = null;
+let currentTab = 't1';
+
+// ══════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════
+const $ = id => document.getElementById(id);
+const el = (tag, attr={}, ...children) => {
+  const e = document.createElement(tag);
+  Object.entries(attr).forEach(([k,v])=>{
+    if(k==='class') e.className=v;
+    else if(k==='html') e.innerHTML=v;
+    else if(k==='text') e.textContent=v;
+    else if(k.startsWith('on')) e.addEventListener(k.slice(2),v);
+    else e.setAttribute(k,v);
+  });
+  children.forEach(c=>c&&e.appendChild(typeof c==='string'?document.createTextNode(c):c));
+  return e;
+};
+
+function showStatus(id, msg, type='info'){
+  const d = $(id);
+  if(!d) return;
+  d.innerHTML = msg ? `<div class="status-msg status-${type}">${msg}</div>` : '';
+}
+
+function fmtDate(d){ return d.toISOString().split('T')[0]; }
+function today(){ return fmtDate(new Date()); }
+function daysAgo(n){ const d=new Date(); d.setDate(d.getDate()-n); return fmtDate(d); }
+
+async function apiFetch(path, opts={}){
+  const headers = {'Content-Type':'application/json'};
+  if(token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(API+path, {...opts, headers:{...headers,...(opts.headers||{})}});
+  if(res.status===401){ doLogout(); throw new Error('未登入'); }
+  if(!res.ok){
+    const err = await res.json().catch(()=>({detail:res.statusText}));
+    throw new Error(err.detail||res.statusText);
+  }
+  return res.json();
+}
+
+// ══════════════════════════════════════
+// LOGIN / AUTH
+// ══════════════════════════════════════
+$('login-btn').onclick = async () => {
+  const email = $('login-email').value.trim();
+  const pwd   = $('login-pwd').value;
+  $('login-error').textContent = '';
+  if(!email||!pwd){ $('login-error').textContent='請輸入 Email 和密碼'; return; }
+  try {
+    $('login-btn').textContent = '登入中...';
+    $('login-btn').disabled = true;
+    const data = await fetch(API+'/api/auth/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pwd})
+    });
+    if(!data.ok){
+      const err = await data.json();
+      throw new Error(err.detail||'登入失敗');
+    }
+    const res = await data.json();
+    token = res.token; username = res.username; userRole = res.role;
+    localStorage.setItem('sr_token',token);
+    localStorage.setItem('sr_username',username);
+    localStorage.setItem('sr_role',userRole);
+    await initApp();
+  } catch(e){
+    $('login-error').textContent = e.message;
+  } finally {
+    $('login-btn').textContent = '🔐 登入';
+    $('login-btn').disabled = false;
+  }
+};
+$('login-pwd').addEventListener('keydown', e=>{ if(e.key==='Enter') $('login-btn').click(); });
+
+function doLogout(){
+  localStorage.removeItem('sr_token');
+  localStorage.removeItem('sr_username');
+  localStorage.removeItem('sr_role');
+  token=''; username=''; userRole='';
+  $('app').style.display='none';
+  $('login-screen').style.display='flex';
+}
+$('logout-btn').onclick = doLogout;
+
+// ══════════════════════════════════════
+// INIT APP
+// ══════════════════════════════════════
+async function initApp(){
+  $('login-screen').style.display='none';
+  $('app').style.display='block';
+  $('sb-username').textContent = username;
+  $('sb-role').textContent = userRole==='vip'?'⭐ VIP 會員':userRole==='admin'?'🔧 管理員':'👤 會員';
+
+  // 載入券商資料
+  try {
+    const [tree, map, geo] = await Promise.all([
+      apiFetch('/api/brokers/tree'),
+      apiFetch('/api/brokers/map'),
+      apiFetch('/api/brokers/geo'),
+    ]);
+    brokerTree = tree; brokerMap = map; geoMap = geo;
+    buildT1Selects();
+    buildT3Selects();
+    buildT4BrSelect();
+  } catch(e){ console.error('載入券商資料失敗',e); }
+
+  // 設預設日期
+  ['t1','t2','t3'].forEach(t=>{
+    $(t+'-sd').value = daysAgo(7);
+    $(t+'-ed').value = today();
+  });
+
+  // 載入最愛和工作組
+  await loadWatchlist();
+  await loadWorkingGroup();
+  renderWatchlist();
+  renderWorkingGroup();
+
+  // VIP
+  if(userRole==='vip'){
+    $('vip-panel').style.display='block';
+    initVipPanel();
+  }
+
+  // Tab 切換
+  document.querySelectorAll('.nav-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      currentTab = tab;
+      ['t1','t2','t3','t4'].forEach(t=>{
+        $('tab-'+t).style.display = t===tab?'':'none';
+      });
+    };
+  });
+
+  // 最愛/工作組切換
+  $('tab-wl-btn').onclick = ()=>{
+    $('tab-wl-btn').classList.add('active');
+    $('tab-wg-btn').classList.remove('active');
+    $('wl-panel').style.display='';
+    $('wg-panel').style.display='none';
+  };
+  $('tab-wg-btn').onclick = ()=>{
+    $('tab-wg-btn').classList.add('active');
+    $('tab-wl-btn').classList.remove('active');
+    $('wg-panel').style.display='';
+    $('wl-panel').style.display='none';
+  };
+}
+
+// ══════════════════════════════════════
+// BROKER SELECTS
+// ══════════════════════════════════════
+function buildT1Selects(){
+  const hqSel = $('t1-hq');
+  hqSel.innerHTML='';
+  Object.keys(brokerTree).sort().forEach(hq=>{
+    hqSel.appendChild(el('option',{value:hq,text:hq}));
+  });
+  hqSel.onchange = ()=>{
+    const br = $('t1-br');
+    br.innerHTML='';
+    const branches = brokerTree[hqSel.value]?.branches||[];
+    [...branches].sort().forEach(b=>br.appendChild(el('option',{value:b,text:b})));
+  };
+  hqSel.dispatchEvent(new Event('change'));
+}
+
+function buildT3Selects(){
+  const locSel = $('t3-loc');
+  locSel.innerHTML='';
+  Object.keys(geoMap).sort().forEach(loc=>{
+    locSel.appendChild(el('option',{value:loc,text:loc}));
+  });
+  locSel.onchange = ()=>{
+    const br = $('t3-br');
+    br.innerHTML='';
+    (geoMap[locSel.value]||[]).sort().forEach(b=>br.appendChild(el('option',{value:b,text:b})));
+  };
+  locSel.dispatchEvent(new Event('change'));
+}
+
+function buildT4BrSelect(){
+  const sel = $('t4-br');
+  sel.innerHTML='';
+  Object.keys(brokerMap).sort().forEach(br=>{
+    sel.appendChild(el('option',{value:br,text:br}));
+  });
+}
+
+// ══════════════════════════════════════
+// TAB1 特定分點
+// ══════════════════════════════════════
+$('t1-search-btn').onclick = async ()=>{
+  const hqName = $('t1-hq').value;
+  const brName = $('t1-br').value;
+  const hqData = brokerTree[hqName];
+  if(!hqData){ showStatus('t1-status','找不到券商','error'); return; }
+  const hqId = hqData.bid;
+  const brId = brokerMap[brName]?.br_id || hqId;
+  const sd = $('t1-sd').value, ed = $('t1-ed').value;
+  const unit = document.querySelector('input[name=t1-unit]:checked').value;
+  const mode = document.querySelector('input[name=t1-mode]:checked').value;
+  const pct  = parseFloat($('t1-pct').value)||95;
+
+  showStatus('t1-status','<div class="loading"><div class="spinner"></div>查詢中...</div>');
+  $('t1-buy-wrap').innerHTML=''; $('t1-sell-wrap').innerHTML='';
+
+  try {
+    const data = await apiFetch(`/api/broker/stocks?hq_id=${hqId}&br_id=${brId}&start=${sd}&end=${ed}&unit=${unit}`);
+    const colB = unit==='amount'?'買進金額':'買進張數';
+    const colS = unit==='amount'?'賣出金額':'賣出張數';
+
+    let buyList, sellList;
+    if(mode==='strict'){
+      buyList  = data.filter(r=>r[colB]>0 && r[colS]===0);
+      sellList = data.filter(r=>r[colS]>0 && r[colB]===0);
+    } else {
+      buyList  = data.filter(r=>r['買%']>=pct);
+      sellList = data.filter(r=>r['賣%']>=pct);
+    }
+    buyList.sort((a,b)=>b[colB]-a[colB]);
+    sellList.sort((a,b)=>b[colS]-a[colS]);
+
+    showStatus('t1-status','');
+    renderStockTable('t1-buy-wrap', buyList, colB, colS, brName, brId, '🔴 買進', 'buy');
+    renderStockTable('t1-sell-wrap', sellList, colB, colS, brName, brId, '🟢 賣出', 'sell');
+  } catch(e){
+    showStatus('t1-status', e.message, 'error');
+  }
+};
+
+function renderStockTable(wrapId, list, colB, colS, brName, brId, title, side){
+  const wrap = $(wrapId);
+  if(!list.length){ wrap.innerHTML=`<div style="color:var(--text2);font-size:.85rem;padding:8px 0">${title} — 無資料</div>`; return; }
+  const tbl = el('table',{class:'wl-table'});
+  tbl.appendChild(el('thead',{},{},el('tr',{},
+    el('th',{text:'股票'}),
+    el('th',{text:colB}),
+    el('th',{text:colS}),
+    el('th',{text:'買%'}),
+    el('th',{text:'連結'}),
+    el('th',{text:'加入'}),
+  )));
+  const tbody = el('tbody');
+  list.forEach(row=>{
+    const sid = row['股票代號'];
+    const sname = row['股票名稱']||'';
+    const kUrl = `https://fubon-ebrokerdj.fbs.com.tw/z/zc/zcw/zcw1_${sid}.djhtm`;
+    const tr = el('tr');
+    tr.appendChild(el('td',{text:`${sname}`}));
+    tr.appendChild(el('td',{text:(row[colB]||0).toLocaleString()}));
+    tr.appendChild(el('td',{text:(row[colS]||0).toLocaleString()}));
+    tr.appendChild(el('td',{text:(side==='buy'?row['買%']:row['賣%'])+'%'}));
+    const linkTd = el('td');
+    linkTd.appendChild(el('a',{class:'link-btn',href:kUrl,target:'_blank',text:'📈'}));
+    tr.appendChild(linkTd);
+    const addTd = el('td');
+    const addBtn = el('button',{class:'link-btn',text:'📊',onclick:()=>{
+      switchToT4(sid, brName);
+    }});
+    addTd.appendChild(addBtn);
+    tr.appendChild(addTd);
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  wrap.innerHTML=`<div style="font-weight:600;margin:12px 0 6px">${title} — 共 ${list.length} 檔</div>`;
+  wrap.appendChild(tbl);
+}
+
+// ══════════════════════════════════════
+// TAB2 股票代號
+// ══════════════════════════════════════
+$('t2-search-btn').onclick = async ()=>{
+  const sid = $('t2-sid').value.trim().toUpperCase();
+  const sd = $('t2-sd').value, ed = $('t2-ed').value;
+  const mode = document.querySelector('input[name=t2-mode]:checked').value;
+  const pct  = parseFloat($('t2-pct').value)||95;
+  const vol  = parseFloat($('t2-vol').value)||0;
+
+  showStatus('t2-status','<div class="loading"><div class="spinner"></div>查詢中...</div>');
+  $('t2-buy-wrap').innerHTML=''; $('t2-sell-wrap').innerHTML='';
+
+  try {
+    const data = await apiFetch(`/api/stock/brokers?sid=${sid}&start=${sd}&end=${ed}`);
+    let buyList, sellList;
+    if(mode==='strict'){
+      buyList  = data.filter(r=>r['買']>=vol && r['賣']===0);
+      sellList = data.filter(r=>r['賣']>=vol && r['買']===0);
+    } else {
+      buyList  = data.filter(r=>r['買進%']>=pct && r['買']>=vol);
+      sellList = data.filter(r=>r['賣出%']>=pct && r['賣']>=vol);
+    }
+    buyList.sort((a,b)=>b['買']-a['買']);
+    sellList.sort((a,b)=>b['賣']-a['賣']);
+    showStatus('t2-status','');
+    renderBrokerTable('t2-buy-wrap', buyList, sid, '🔴 買進分點');
+    renderBrokerTable('t2-sell-wrap', sellList, sid, '🟢 賣出分點');
+  } catch(e){
+    showStatus('t2-status', e.message, 'error');
+  }
+};
+
+function renderBrokerTable(wrapId, list, sid, title){
+  const wrap = $(wrapId);
+  if(!list.length){ wrap.innerHTML=`<div style="color:var(--text2);font-size:.85rem;padding:8px 0">${title} — 無資料</div>`; return; }
+  const tbl = el('table',{class:'wl-table'});
+  tbl.appendChild(el('thead',{},el('tr',
+    el('th',{text:'券商'}),
+    el('th',{text:'買'}),
+    el('th',{text:'賣'}),
+    el('th',{text:'買進%'}),
+    el('th',{text:'K線'}),
+  )));
+  const tbody = el('tbody');
+  list.forEach(row=>{
+    const brName = row['券商'];
+    const brInfo = brokerMap[brName] || Object.values(brokerMap).find(v=>brName.includes(v.hq_name)||v.hq_name.includes(brName));
+    const tr = el('tr');
+    tr.appendChild(el('td',{text:brName}));
+    tr.appendChild(el('td',{text:(row['買']||0).toLocaleString()}));
+    tr.appendChild(el('td',{text:(row['賣']||0).toLocaleString()}));
+    tr.appendChild(el('td',{text:row['買進%']+'%'}));
+    const td = el('td');
+    if(brInfo){
+      td.appendChild(el('button',{class:'link-btn',text:'📊',onclick:()=>switchToT4(sid,brName)}));
+    }
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  wrap.innerHTML=`<div style="font-weight:600;margin:12px 0 6px">${title} — 共 ${list.length} 筆</div>`;
+  wrap.appendChild(tbl);
+}
+
+// ══════════════════════════════════════
+// TAB3 地緣券商
+// ══════════════════════════════════════
+$('t3-search-btn').onclick = async ()=>{
+  const loc = $('t3-loc').value;
+  const brName = $('t3-br').value;
+  const brInfo = brokerMap[brName];
+  if(!brInfo){ showStatus('t3-status','找不到分點資料','error'); return; }
+  const sd = $('t3-sd').value, ed = $('t3-ed').value;
+  const unit = document.querySelector('input[name=t3-unit]:checked').value;
+  const mode = document.querySelector('input[name=t3-mode]:checked').value;
+  const pct  = parseFloat($('t3-pct').value)||95;
+
+  showStatus('t3-status','<div class="loading"><div class="spinner"></div>查詢中...</div>');
+  $('t3-buy-wrap').innerHTML=''; $('t3-sell-wrap').innerHTML='';
+
+  try {
+    const data = await apiFetch(`/api/broker/stocks?hq_id=${brInfo.hq_id}&br_id=${brInfo.br_id}&start=${sd}&end=${ed}&unit=${unit}`);
+    const colB = unit==='amount'?'買進金額':'買進張數';
+    const colS = unit==='amount'?'賣出金額':'賣出張數';
+    let buyList, sellList;
+    if(mode==='strict'){
+      buyList  = data.filter(r=>r[colB]>0 && r[colS]===0);
+      sellList = data.filter(r=>r[colS]>0 && r[colB]===0);
+    } else {
+      buyList  = data.filter(r=>r['買%']>=pct);
+      sellList = data.filter(r=>r['賣%']>=pct);
+    }
+    buyList.sort((a,b)=>b[colB]-a[colB]);
+    sellList.sort((a,b)=>b[colS]-a[colS]);
+    showStatus('t3-status','');
+    renderStockTable('t3-buy-wrap', buyList, colB, colS, brName, brInfo.br_id, `🔴 ${brName} 買進`, 'buy');
+    renderStockTable('t3-sell-wrap', sellList, colB, colS, brName, brInfo.br_id, `🟢 ${brName} 賣出`, 'sell');
+  } catch(e){
+    showStatus('t3-status', e.message, 'error');
+  }
+};
+
+// ══════════════════════════════════════
+// TAB4 K線圖
+// ══════════════════════════════════════
+function switchToT4(sid, brName){
+  $('t4-sid').value = sid;
+  // 找到對應分點
+  const sel = $('t4-br');
+  for(let i=0;i<sel.options.length;i++){
+    if(sel.options[i].value===brName){ sel.selectedIndex=i; break; }
+  }
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.nav-btn[data-tab=t4]').classList.add('active');
+  ['t1','t2','t3','t4'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');
+  currentTab='t4';
+  drawChart();
+}
+
+$('t4-draw-btn').onclick = drawChart;
+
+async function drawChart(){
+  const sid    = $('t4-sid').value.trim().toUpperCase();
+  const brName = $('t4-br').value;
+  const brInfo = brokerMap[brName];
+  const period = document.querySelector('input[name=t4-period]:checked').value;
+  const days   = parseInt($('t4-days').value)||300;
+  const startY = $('t4-start').value;
+
+  if(!brInfo){ showStatus('t4-status','找不到分點','error'); return; }
+  showStatus('t4-status',`<div class="loading"><div class="spinner"></div>載入 ${sid} 資料中...</div>`);
+  $('chart-wrapper').style.display='none';
+
+  try {
+    const [klineRes, histRes] = await Promise.all([
+      apiFetch(`/api/stock/kline?sid=${sid}&start=${startY}`),
+      apiFetch(`/api/stock/broker_history?sid=${sid}&br_id=${brInfo.br_id}&start=${startY}`),
+    ]);
+
+    const kdata = klineRes.data || [];
+    const stockName = histRes.stock_name || '';
+    const volMap = {};
+    (histRes.records||[]).forEach(r=>{ volMap[r.Date]=r['買賣超']; });
+
+    // 合併並 resample
+    let merged = kdata.map(d=>({
+      date: d.Date,
+      open: d.Open, high: d.High, low: d.Low, close: d.Close,
+      vol: volMap[d.Date]||0,
+    }));
+
+    if(period==='W') merged = resampleWeekly(merged);
+    else if(period==='M') merged = resampleMonthly(merged);
+
+    // BB (52)
+    merged = calcBB(merged, 52, 2);
+    // MACD
+    merged = calcMACDFull(merged, 12,26,9, 'M1');
+    merged = calcMACDFull(merged, 26,52,18, 'M2');
+
+    // Divergence markers
+    const {priceMarkers:pm1, macdMarkers:mm1} = getDivMarkers(merged,'M1_macd','M1_hist','S');
+    const {priceMarkers:pm2, macdMarkers:mm2} = getDivMarkers(merged,'M2_macd','M2_hist','L');
+    const allPriceMarkers = mergeMarkers([...pm1,...pm2]);
+
+    // 只取最後 N 根
+    const plotData = merged.slice(-days);
+    const plotDates = new Set(plotData.map(d=>d.date));
+    const finalPM = allPriceMarkers.filter(m=>plotDates.has(m.time)).sort((a,b)=>a.time>b.time?1:-1);
+    const finalMM1 = mm1.filter(m=>plotDates.has(m.time)).sort((a,b)=>a.time>b.time?1:-1);
+    const finalMM2 = mm2.filter(m=>plotDates.has(m.time)).sort((a,b)=>a.time>b.time?1:-1);
+
+    showStatus('t4-status','');
+    renderChart(plotData, finalPM, finalMM1, finalMM2, sid, stockName, brName);
+  } catch(e){
+    showStatus('t4-status', e.message, 'error');
+  }
+}
+
+// ── Resample ──
+function resampleWeekly(data){
+  const weeks={};
+  data.forEach(d=>{
+    const dt=new Date(d.date);
+    const day=dt.getDay();
+    const fri=new Date(dt); fri.setDate(dt.getDate()+(5-day+7)%7);
+    const key=fri.toISOString().split('T')[0];
+    if(!weeks[key]) weeks[key]={date:key,open:d.open,high:d.high,low:d.low,close:d.close,vol:0};
+    const w=weeks[key];
+    w.high=Math.max(w.high,d.high); w.low=Math.min(w.low,d.low);
+    w.close=d.close; w.vol+=d.vol;
+  });
+  return Object.values(weeks).sort((a,b)=>a.date>b.date?1:-1);
+}
+function resampleMonthly(data){
+  const months={};
+  data.forEach(d=>{
+    const key=d.date.slice(0,7);
+    if(!months[key]) months[key]={date:d.date,open:d.open,high:d.high,low:d.low,close:d.close,vol:0};
+    const m=months[key];
+    m.high=Math.max(m.high,d.high); m.low=Math.min(m.low,d.low);
+    m.close=d.close; m.date=d.date; m.vol+=d.vol;
+  });
+  return Object.values(months).sort((a,b)=>a.date>b.date?1:-1);
+}
+
+// ── EMA / MACD / BB ──
+function ema(vals, span){
+  const k=2/(span+1), res=[];
+  vals.forEach((v,i)=>{
+    if(i===0) res.push(v);
+    else res.push(v*k+res[i-1]*(1-k));
+  });
+  return res;
+}
+function calcMACDFull(data, fast, slow, signal, prefix){
+  const closes = data.map(d=>d.close);
+  const e1=ema(closes,fast), e2=ema(closes,slow);
+  const macdLine=e1.map((v,i)=>v-e2[i]);
+  const sigLine=ema(macdLine,signal);
+  data.forEach((d,i)=>{
+    d[prefix+'_macd']=macdLine[i];
+    d[prefix+'_sig']=sigLine[i];
+    d[prefix+'_hist']=macdLine[i]-sigLine[i];
+  });
+  return data;
+}
+function calcBB(data, w, mult){
+  for(let i=0;i<data.length;i++){
+    if(i<w-1){ data[i].bb_mid=null; data[i].bb_up=null; data[i].bb_dn=null; continue; }
+    const slice=data.slice(i-w+1,i+1).map(d=>d.close);
+    const mean=slice.reduce((a,b)=>a+b,0)/w;
+    const std=Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2,0)/w);
+    data[i].bb_mid=mean; data[i].bb_up=mean+mult*std; data[i].bb_dn=mean-mult*std;
+  }
+  return data;
+}
+
+// ── Divergence Markers ──
+function getDivMarkers(data, macdCol, histCol, prefix){
+  const priceMarkers=[], macdMarkers=[];
+  let curTopDif=0,curTopDate=null,curTopClose=0;
+  let prevTopDif=0,prevTopDate=null,prevTopClose=0,curWaveHigh=0;
+  let curBotDif=0,curBotDate=null,curBotClose=0;
+  let prevBotDif=0,prevBotDate=null,prevBotClose=0,curWaveLow=1e9;
+  let inRed=false,inGrn=false,topZeroBroken=false,botZeroBroken=false;
+
+  for(let i=1;i<data.length;i++){
+    const d=data[i],dp=data[i-1];
+    const hist=d[histCol],histPrev=dp[histCol];
+    const dif=d[macdCol],high=d.high,low=d.low,date=d.date;
+    const crossUp=histPrev<=0&&hist>0, crossDown=histPrev>=0&&hist<0;
+
+    if(crossUp){curTopDif=0;curTopDate=null;curTopClose=0;curWaveHigh=0;inRed=true;botZeroBroken=false;}
+    if(!inRed&&dif<0&&prevTopDif>0) topZeroBroken=true;
+    if(topZeroBroken&&crossUp){prevTopDif=0;prevTopDate=null;prevTopClose=0;topZeroBroken=false;}
+    if(crossDown){
+      inRed=false;
+      if(prevTopDate&&prevTopDif>0) macdMarkers.push({time:prevTopDate,position:'aboveBar',color:'#FFD600',shape:'text',text:prevTopDif.toFixed(2),size:1});
+      if(curTopDif>0&&prevTopDif>0&&curTopDif<prevTopDif&&curWaveHigh>=prevTopClose&&prevTopDate){
+        const lbl=curWaveHigh===prevTopClose?'价同':'價破';
+        priceMarkers.push({time:prevTopDate,position:'aboveBar',color:'#ef5350',shape:'arrowDown',text:`M${prefix}\n${lbl}\n${prevTopClose.toFixed(2)}`,price:prevTopClose});
+      }
+      if(curTopDif>0){prevTopDif=curTopDif;prevTopDate=curTopDate;prevTopClose=curTopClose;}
+      curTopDif=0;curTopDate=null;curTopClose=0;curWaveHigh=0;
+    }
+    if(hist>0){if(dif>curTopDif){curTopDif=dif;curTopDate=date;curTopClose=high;}if(high>curWaveHigh)curWaveHigh=high;}
+    if(crossDown){curBotDif=0;curBotDate=null;curBotClose=0;curWaveLow=1e9;inGrn=true;topZeroBroken=false;}
+    if(!inGrn&&dif>0&&prevBotDif<0) botZeroBroken=true;
+    if(botZeroBroken&&crossDown){prevBotDif=0;prevBotDate=null;prevBotClose=0;botZeroBroken=false;}
+    if(crossUp){
+      inGrn=false;
+      if(prevBotDate&&prevBotDif<0) macdMarkers.push({time:prevBotDate,position:'belowBar',color:'#00E676',shape:'text',text:prevBotDif.toFixed(2),size:1});
+      if(curBotDif<0&&prevBotDif<0&&curBotDif>prevBotDif&&curWaveLow<=prevBotClose&&prevBotDate){
+        const lbl=curWaveLow===prevBotClose?'价同':'價破';
+        priceMarkers.push({time:prevBotDate,position:'belowBar',color:'#26a69a',shape:'arrowUp',text:`W${prefix}\n${lbl}\n${prevBotClose.toFixed(2)}`,price:prevBotClose});
+      }
+      if(curBotDif<0){prevBotDif=curBotDif;prevBotDate=curBotDate;prevBotClose=curBotClose;}
+      curBotDif=0;curBotDate=null;curBotClose=0;curWaveLow=1e9;
+    }
+    if(hist<0){if(dif<curBotDif){curBotDif=dif;curBotDate=date;curBotClose=low;}if(low<curWaveLow)curWaveLow=low;}
+
+    if(i===data.length-1){
+      if(hist>0&&curTopDif>0&&prevTopDif>0){
+        if(prevTopDate) macdMarkers.push({time:prevTopDate,position:'aboveBar',color:'#FFD600',shape:'text',text:prevTopDif.toFixed(2),size:1});
+        if(curTopDif<prevTopDif&&curWaveHigh>=prevTopClose&&prevTopDate){
+          priceMarkers.push({time:prevTopDate,position:'aboveBar',color:'#ef5350',shape:'arrowDown',text:`未M${prefix}\n${curWaveHigh===prevTopClose?'价同':'價破'}\n${prevTopClose.toFixed(2)}`,price:prevTopClose});
+        }
+      }
+      if(hist<0&&curBotDif<0&&prevBotDif<0){
+        if(prevBotDate) macdMarkers.push({time:prevBotDate,position:'belowBar',color:'#00E676',shape:'text',text:prevBotDif.toFixed(2),size:1});
+        if(curBotDif>prevBotDif&&curWaveLow<=prevBotClose&&prevBotDate){
+          priceMarkers.push({time:prevBotDate,position:'belowBar',color:'#26a69a',shape:'arrowUp',text:`未W${prefix}\n${curWaveLow===prevBotClose?'价同':'價破'}\n${prevBotClose.toFixed(2)}`,price:prevBotClose});
+        }
+      }
+    }
+  }
+  function dedup(lst){const seen=new Set(),out=[];[...lst].reverse().forEach(m=>{const k=m.time+'_'+m.text;if(!seen.has(k)){seen.add(k);out.push(m);}});return out.reverse();}
+  return {priceMarkers:dedup(priceMarkers), macdMarkers:dedup(macdMarkers)};
+}
+
+function mergeMarkers(markers){
+  const merged={};
+  markers.forEach(m=>{
+    if(!merged[m.time]) merged[m.time]={...m};
+    else merged[m.time].text+='\n---\n'+m.text;
+  });
+  return Object.values(merged).sort((a,b)=>a.time>b.time?1:-1);
+}
+
+// ── Render Chart ──
+function renderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid, stockName, brName){
+  $('chart-wrapper').style.display='block';
+  if(currentChart){ try{currentChart.remove();}catch(e){} currentChart=null; }
+  const container = $('chart-container');
+  container.innerHTML='';
+
+  const chart = LightweightCharts.createChart(container,{
+    layout:{backgroundColor:'#0e1117',textColor:'#d1d4dc'},
+    watermark:{color:'rgba(255,255,255,0.06)',visible:true,text:`${sid} ${stockName}`,fontSize:72,horzAlign:'center',vertAlign:'center'},
+    grid:{vertLines:{visible:false},horzLines:{visible:false}},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    width:container.clientWidth, height:container.clientHeight,
+  });
+  currentChart=chart;
+  chart.priceScale('right').applyOptions({scaleMargins:{top:0.02,bottom:0.45}});
+
+  const kSeries=chart.addCandlestickSeries({upColor:'#ef5350',downColor:'#26a69a',borderVisible:false,wickUpColor:'#ef5350',wickDownColor:'#26a69a',priceLineVisible:false});
+  kSeries.setData(plotData.map(d=>({time:d.date,open:d.open,high:d.high,low:d.low,close:d.close})));
+  kSeries.setMarkers(priceMarkers);
+
+  const lastTime=plotData[plotData.length-1].date;
+  priceMarkers.forEach(m=>{
+    if(m.price===undefined) return;
+    const lc=m.color==='#ef5350'?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)';
+    const ls=chart.addLineSeries({color:lc,lineWidth:2,lineStyle:1,lastValueVisible:false,priceLineVisible:false,crosshairMarkerVisible:false});
+    ls.setData(m.time===lastTime?[{time:m.time,value:m.price}]:[{time:m.time,value:m.price},{time:lastTime,value:m.price}]);
+  });
+
+  const bbMid=chart.addLineSeries({color:'#FFD600',lineWidth:1,crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
+  bbMid.setData(plotData.filter(d=>d.bb_mid!=null).map(d=>({time:d.date,value:d.bb_mid})));
+  const bbUp=chart.addLineSeries({color:'rgba(255,255,255,0.35)',lineWidth:1,lineStyle:2,crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
+  bbUp.setData(plotData.filter(d=>d.bb_up!=null).map(d=>({time:d.date,value:d.bb_up})));
+  const bbDn=chart.addLineSeries({color:'rgba(255,255,255,0.35)',lineWidth:1,lineStyle:2,crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
+  bbDn.setData(plotData.filter(d=>d.bb_dn!=null).map(d=>({time:d.date,value:d.bb_dn})));
+
+  const volS=chart.addHistogramSeries({priceScaleId:'vol',lastValueVisible:false,priceLineVisible:false});
+  volS.setData(plotData.map(d=>({time:d.date,value:d.vol,color:d.vol>0?'rgba(239,83,80,0.8)':d.vol<0?'rgba(38,166,154,0.8)':'rgba(120,120,120,0.5)'})));
+  chart.priceScale('vol').applyOptions({scaleMargins:{top:0.58,bottom:0.28},visible:false});
+
+  const h1s=chart.addHistogramSeries({priceScaleId:'m1',lastValueVisible:false,priceLineVisible:false});
+  h1s.setData(plotData.map(d=>({time:d.date,value:d.M1_hist,color:d.M1_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));
+  const m1s=chart.addLineSeries({color:'#FFD600',lineWidth:1,priceScaleId:'m1',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
+  m1s.setData(plotData.map(d=>({time:d.date,value:d.M1_macd})));
+  m1s.setMarkers(macdMarkers1);
+  const s1s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m1',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
+  s1s.setData(plotData.map(d=>({time:d.date,value:d.M1_sig})));
+  chart.priceScale('m1').applyOptions({scaleMargins:{top:0.72,bottom:0.15},visible:false});
+
+  const h2s=chart.addHistogramSeries({priceScaleId:'m2',lastValueVisible:false,priceLineVisible:false});
+  h2s.setData(plotData.map(d=>({time:d.date,value:d.M2_hist,color:d.M2_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));
+  const m2s=chart.addLineSeries({color:'#FFD600',lineWidth:1,priceScaleId:'m2',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
+  m2s.setData(plotData.map(d=>({time:d.date,value:d.M2_macd})));
+  m2s.setMarkers(macdMarkers2);
+  const s2s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m2',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
+  s2s.setData(plotData.map(d=>({time:d.date,value:d.M2_sig})));
+  chart.priceScale('m2').applyOptions({scaleMargins:{top:0.85,bottom:0},visible:false});
+
+  const dictByTime={};
+  plotData.forEach(d=>dictByTime[d.date]=d);
+  const legend=$('chart-legend');
+  const DOW=['日','一','二','三','四','五','六'];
+
+  chart.subscribeCrosshairMove(param=>{
+    if(!param.time||param.point===undefined||param.point.x<0||param.point.y<0){
+      legend.innerHTML='將滑鼠移至K線上查看數據'; return;
+    }
+    const d=dictByTime[param.time]; if(!d) return;
+    const vc=d.vol>=0?'#ef5350':'#26a69a';
+    legend.innerHTML=`
+      <div class="legend-title">${sid} ${stockName} | ${d.date} 週${DOW[new Date(d.date).getDay()]}</div>
+      <div class="legend-row"><span class="legend-lbl">開盤</span><span>${d.open?.toFixed(2)}</span></div>
+      <div class="legend-row"><span class="legend-lbl">最高</span><span style="color:#ef5350">${d.high?.toFixed(2)}</span></div>
+      <div class="legend-row"><span class="legend-lbl">最低</span><span style="color:#26a69a">${d.low?.toFixed(2)}</span></div>
+      <div class="legend-row"><span class="legend-lbl">收盤</span><span style="font-weight:700">${d.close?.toFixed(2)}</span></div>
+      <div class="legend-vol"><span class="legend-lbl">買賣(${brName})</span><span style="color:${vc}">${d.vol} 張</span></div>
+      <div class="legend-macd">短MACD 柱<span style="color:${d.M1_hist>=0?'#ef5350':'#26a69a'}">${d.M1_hist?.toFixed(2)}</span> 快<span style="color:#FFD600">${d.M1_macd?.toFixed(2)}</span> 慢<span style="color:#00E676">${d.M1_sig?.toFixed(2)}</span></div>
+      <div class="legend-macd">長MACD 柱<span style="color:${d.M2_hist>=0?'#ef5350':'#26a69a'}">${d.M2_hist?.toFixed(2)}</span> 快<span style="color:#FFD600">${d.M2_macd?.toFixed(2)}</span> 慢<span style="color:#00E676">${d.M2_sig?.toFixed(2)}</span></div>
+    `;
+  });
+
+  new ResizeObserver(()=>{
+    chart.applyOptions({width:container.clientWidth,height:container.clientHeight});
+    chart.timeScale().fitContent();
+  }).observe(container);
+  setTimeout(()=>chart.timeScale().fitContent(),100);
+}
+
+// ══════════════════════════════════════
+// WATCHLIST
+// ══════════════════════════════════════
+async function loadWatchlist(){
+  try { watchlist = await apiFetch('/api/watchlist'); } catch(e){ watchlist=[]; }
+}
+async function saveWatchlist(){
+  try { await apiFetch('/api/watchlist',{method:'POST',body:JSON.stringify({items:watchlist})}); } catch(e){}
+}
+async function loadWorkingGroup(){
+  try { workingGroup = await apiFetch('/api/working_group'); } catch(e){ workingGroup=[]; }
+}
+async function saveWorkingGroup(){
+  try { await apiFetch('/api/working_group',{method:'POST',body:JSON.stringify({items:workingGroup})}); } catch(e){}
+}
+
+function updateCounts(){
+  $('wl-count').textContent=`(${watchlist.length})`;
+  $('wg-count').textContent=`(${workingGroup.length})`;
+}
+
+function renderWatchlist(){
+  updateCounts();
+  const wrap=$('wl-table-wrap');
+  if(!watchlist.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.85rem;padding:8px 0">最愛清單為空，可在繪圖頁用 ❤️ 存入按鈕加入。</div>'; return; }
+  const tbl=el('table',{class:'wl-table'});
+  tbl.appendChild(el('thead',{},el('tr',
+    el('th',{text:'載入'}),
+    el('th',{text:'代號'}),
+    el('th',{text:'名稱'}),
+    el('th',{text:'追蹤分點'}),
+    el('th',{text:'筆記'}),
+    el('th',{text:'刪除'}),
+  )));
+  const tbody=el('tbody');
+  watchlist.forEach((item,i)=>{
+    const tr=el('tr');
+    const loadCb=el('input',{type:'checkbox',title:'載入繪圖',onclick:()=>{ switchToT4(item['股票代號'],item['追蹤分點']); loadCb.checked=false; }});
+    tr.appendChild(el('td',loadCb));
+    tr.appendChild(el('td',{text:item['股票代號']}));
+    tr.appendChild(el('td',{text:item['股票名稱']||''}));
+    tr.appendChild(el('td',{text:item['追蹤分點']}));
+    const noteTd=el('td');
+    const noteInput=el('input',{class:'note-input',type:'text',value:item['筆記']||'',placeholder:'點擊編輯...'});
+    noteInput.onblur=async ()=>{
+      watchlist[i]['筆記']=noteInput.value;
+      await saveWatchlist();
+    };
+    noteTd.appendChild(noteInput);
+    tr.appendChild(noteTd);
+    const delCb=el('input',{type:'checkbox',title:'刪除',onclick:async()=>{
+      watchlist.splice(i,1);
+      await saveWatchlist();
+      renderWatchlist();
+    }});
+    tr.appendChild(el('td',delCb));
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  wrap.innerHTML='';
+  wrap.appendChild(tbl);
+}
+
+function renderWorkingGroup(){
+  updateCounts();
+  const wrap=$('wg-table-wrap');
+  if(!workingGroup.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.85rem;padding:8px 0">工作組為空。</div>'; return; }
+  const tbl=el('table',{class:'wl-table'});
+  tbl.appendChild(el('thead',{},el('tr',
+    el('th',{text:'載入'}),
+    el('th',{text:'⭐存愛'}),
+    el('th',{text:'代號'}),
+    el('th',{text:'名稱'}),
+    el('th',{text:'追蹤分點'}),
+    el('th',{text:'移除'}),
+  )));
+  const tbody=el('tbody');
+  workingGroup.forEach((item,i)=>{
+    const tr=el('tr');
+    const loadCb=el('input',{type:'checkbox',onclick:()=>{ switchToT4(item['股票代號'],item['追蹤分點']); loadCb.checked=false; }});
+    const saveCb=el('input',{type:'checkbox'});
+    tr.appendChild(el('td',loadCb));
+    tr.appendChild(el('td',saveCb));
+    tr.appendChild(el('td',{text:item['股票代號']}));
+    tr.appendChild(el('td',{text:item['股票名稱']||''}));
+    tr.appendChild(el('td',{text:item['追蹤分點']}));
+    const delCb=el('input',{type:'checkbox',onclick:async()=>{
+      workingGroup.splice(i,1);
+      await saveWorkingGroup();
+      renderWorkingGroup();
+    }});
+    tr.appendChild(el('td',delCb));
+    tbody.appendChild(tr);
+    tr._saveCb=saveCb;
+  });
+  tbl.appendChild(tbody);
+  wrap.innerHTML='';
+  wrap.appendChild(tbl);
+  // 存入最愛 via ⭐ 欄
+  $('wg-fav-btn').onclick=async()=>{
+    const rows=[...tbody.querySelectorAll('tr')];
+    const toAdd=rows.filter(r=>r._saveCb?.checked).map((_,i2)=>workingGroup[i2]).filter(Boolean);
+    if(!toAdd.length){ alert('請先勾選 ⭐ 存愛 欄位的項目'); return; }
+    let added=0;
+    toAdd.forEach(item=>{
+      if(!watchlist.find(w=>w['股票代號']===item['股票代號']&&w['追蹤分點']===item['追蹤分點'])){
+        watchlist.push({...item,筆記:''});
+        added++;
+      }
+    });
+    if(added){ await saveWatchlist(); renderWatchlist(); alert(`✅ 已存入 ${added} 檔到最愛`); }
+    else alert('全部已在最愛清單中');
+  };
+}
+
+$('wg-clear-btn').onclick=async()=>{
+  if(!confirm('確定清空工作組？')) return;
+  workingGroup=[];
+  await saveWorkingGroup();
+  renderWorkingGroup();
+};
+
+$('t4-fav-btn').onclick=async()=>{
+  const sid=$('t4-sid').value.trim().toUpperCase();
+  const brName=$('t4-br').value;
+  if(!watchlist.find(w=>w['股票代號']===sid&&w['追蹤分點']===brName)){
+    watchlist.push({'股票代號':sid,'股票名稱':'','追蹤分點':brName,'筆記':''});
+    await saveWatchlist();
+    renderWatchlist();
+    showStatus('t4-status','✅ 已存入最愛清單','success');
+    setTimeout(()=>showStatus('t4-status',''),2000);
+  } else {
+    showStatus('t4-status','⚠️ 此組合已在最愛清單中','info');
+    setTimeout(()=>showStatus('t4-status',''),2000);
+  }
+};
+
+// ══════════════════════════════════════
+// VIP 掃描清單
+// ══════════════════════════════════════
+function initVipPanel(){
+  // slider 顯示值
+  ['vip-days','vip-score','vip-pct'].forEach(id=>{
+    const input=$(id), valEl=$(id+'-val');
+    if(input&&valEl){ input.oninput=()=>valEl.textContent=input.value; }
+  });
+  $('vip-period').onchange = ()=> loadVipData();
+  $('vip-apply-btn').onclick = ()=> applyVipFilter();
+  loadVipData();
+}
+
+async function loadVipData(){
+  const sheet=$('vip-period').value;
+  $('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div></div>';
+  try {
+    vipScanData = await apiFetch(`/api/vip/scan?sheet=${sheet}`);
+    // 計算強度和符合度
+    const today=new Date();
+    vipScanData.forEach(row=>{
+      const dates=(row['訊號摘要']||'').match(/\d{4}\/\d{2}\/\d{2}/g)||[];
+      let latest=null;
+      dates.forEach(d=>{const dt=new Date(d.replace(/\//g,'-'));if(!latest||dt>latest)latest=dt;});
+      row._latestDate=latest;
+      let score=0;
+      score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;
+      const scale=row['金額(萬)']?parseFloat(row['金額(萬)']||0):parseFloat(row['張數']||0)/10;
+      score+=Math.min(scale/500,1)*40;
+      if(latest){const daysAgo=Math.floor((today-latest)/86400000);score+=Math.max(0,20-daysAgo*0.3);}
+      const s=row['訊號摘要']||'';
+      if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL'))) score+=10;
+      row._score=Math.round(score*10)/10;
+      const dir=row['方向']||'';
+      const hasW=s.includes('WS')||s.includes('WL'), hasM=s.includes('MS')||s.includes('ML');
+      const isBuy=dir==='買進', isSell=dir==='賣出';
+      row._match=(hasW&&isBuy)||(hasM&&isSell)?'🟢最佳':hasM&&isBuy?'🟡參考':hasW&&isSell?'🔴注意':'⚪未知';
+    });
+    applyVipFilter();
+  } catch(e){
+    $('vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`;
+  }
+}
+
+function applyVipFilter(){
+  const days=parseInt($('vip-days').value)||60;
+  const dir=$('vip-dir').value;
+  const minScore=parseInt($('vip-score').value)||0;
+  const minPct=parseInt($('vip-pct').value)||0;
+  const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-days);
+
+  vipFiltered=vipScanData.filter(r=>{
+    if(r._latestDate&&r._latestDate<cutoff) return false;
+    if(dir!=='全部'&&r['方向']!==dir) return false;
+    if(r._score<minScore) return false;
+    if(parseFloat(r['佔比%']||0)<minPct) return false;
+    return true;
+  }).sort((a,b)=>b._score-a._score);
+
+  // 更新分點選單
+  const brokerSel=$('vip-broker-sel');
+  const curBr=brokerSel.value;
+  brokerSel.innerHTML='<option>全部分點</option>';
+  const counts={};
+  vipFiltered.forEach(r=>{const b=r['分點名稱']||'';if(b)counts[b]=(counts[b]||0)+1;});
+  Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([br,cnt])=>{
+    brokerSel.appendChild(el('option',{value:br,text:`${br}（${cnt}）`}));
+  });
+  if([...brokerSel.options].find(o=>o.value===curBr)) brokerSel.value=curBr;
+  brokerSel.onchange=renderVipTable;
+
+  $('vip-caption').textContent=`近${days}天 強度≥${minScore} 共 ${vipFiltered.length} 檔`;
+  renderVipTable();
+}
+
+let vipSelected=new Set();
+
+function renderVipTable(){
+  const selBr=$('vip-broker-sel').value;
+  let rows=vipFiltered;
+  if(selBr!=='全部分點') rows=rows.filter(r=>r['分點名稱']===selBr);
+
+  const wrap=$('vip-table-wrap');
+  if(!rows.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>'; return; }
+
+  const tbl=el('table',{class:'vip-table'});
+  tbl.appendChild(el('thead',{},el('tr',
+    el('th',{text:'📊'}),
+    el('th',{text:'🗂️'}),
+    el('th',{text:'代號'}),
+    el('th',{text:'名稱'}),
+    el('th',{text:'分點'}),
+    el('th',{text:'符合'}),
+    el('th',{text:'強度'}),
+  )));
+  const tbody=el('tbody');
+  rows.forEach(row=>{
+    const sid=String(row['股票代號']||'').trim();
+    const br=String(row['分點名稱']||'').trim();
+    const key=`${sid}||${br}`;
+    const tr=el('tr');
+    // 📊 載入K線
+    const loadCb=el('input',{type:'checkbox',title:'載入K線',onclick:()=>{
+      switchToT4(sid,br); loadCb.checked=false;
+    }});
+    tr.appendChild(el('td',loadCb));
+    // 🗂️ 加入工作組
+    const selCb=el('input',{type:'checkbox',checked:vipSelected.has(key),onclick:()=>{
+      if(selCb.checked) vipSelected.add(key);
+      else vipSelected.delete(key);
+    }});
+    tr.appendChild(el('td',selCb));
+    tr.appendChild(el('td',{text:sid}));
+    tr.appendChild(el('td',{text:String(row['股票名稱']||'')}));
+    tr.appendChild(el('td',{text:br}));
+    tr.appendChild(el('td',{text:row._match||''}));
+    tr.appendChild(el('td',{text:row._score}));
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  wrap.innerHTML='';
+  wrap.appendChild(tbl);
+
+  // 加入工作組按鈕
+  const selWrap=$('vip-sel-wrap');
+  selWrap.innerHTML='';
+  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 勾選加入工作組',onclick:async()=>{
+    if(!vipSelected.size){ alert('請先勾選 🗂️ 欄位的股票'); return; }
+    let added=0;
+    vipSelected.forEach(key=>{
+      const [s,b]=key.split('||');
+      const dataRow=vipScanData.find(r=>String(r['股票代號']||'')==s&&String(r['分點名稱']||'')==b);
+      const sname=dataRow?String(dataRow['股票名稱']||''):'';
+      if(!workingGroup.find(w=>w['股票代號']===s&&w['追蹤分點']===b)){
+        workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b});
+        added++;
+      }
+    });
+    if(added){
+      await saveWorkingGroup();
+      renderWorkingGroup();
+      vipSelected.clear();
+      renderVipTable();
+      alert(`✅ 已加入 ${added} 檔到工作組`);
+    } else alert('全部已在工作組中');
+  }});
+  selWrap.appendChild(addBtn);
+}
+
+// ══════════════════════════════════════
+// AUTO LOGIN (token 已存在)
+// ══════════════════════════════════════
+(async()=>{
+  if(token && username){
+    try { await initApp(); }
+    catch(e){ doLogout(); }
+  }
+})();
+</script>
+</body>
+</html>
