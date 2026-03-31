@@ -765,21 +765,16 @@ function renderStockTable(wrapId, list, colB, colS, brName, brId, title, side){
   const wrap = $(wrapId);
   if(!list.length){ wrap.innerHTML=`<div style="color:var(--text2);font-size:.85rem;padding:8px 0">${title} — 無資料</div>`; return; }
   const tbl = el('table',{class:'wl-table'});
-  tbl.appendChild(el('thead',{},{},el('tr',{},
-    el('th',{text:'股票'}),
-    el('th',{text:colB}),
-    el('th',{text:colS}),
-    el('th',{text:'買%'}),
-    el('th',{text:'連結'}),
-    el('th',{text:'加入'}),
-  )));
+  const thead = el('thead'); const hr = el('tr');
+  ['股票','買進','賣出','佔%','K線','繪圖'].forEach(t=>hr.appendChild(el('th',{text:t})));
+  thead.appendChild(hr); tbl.appendChild(thead);
   const tbody = el('tbody');
   list.forEach(row=>{
     const sid = row['股票代號'];
     const sname = row['股票名稱']||'';
     const kUrl = `https://fubon-ebrokerdj.fbs.com.tw/z/zc/zcw/zcw1_${sid}.djhtm`;
     const tr = el('tr');
-    tr.appendChild(el('td',{text:`${sname}`}));
+    tr.appendChild(el('td',{text:`${sid} ${sname}`}));
     tr.appendChild(el('td',{text:(row[colB]||0).toLocaleString()}));
     tr.appendChild(el('td',{text:(row[colS]||0).toLocaleString()}));
     tr.appendChild(el('td',{text:(side==='buy'?row['買%']:row['賣%'])+'%'}));
@@ -836,26 +831,19 @@ function renderBrokerTable(wrapId, list, sid, title){
   const wrap = $(wrapId);
   if(!list.length){ wrap.innerHTML=`<div style="color:var(--text2);font-size:.85rem;padding:8px 0">${title} — 無資料</div>`; return; }
   const tbl = el('table',{class:'wl-table'});
-  tbl.appendChild(el('thead',{},el('tr',
-    el('th',{text:'券商'}),
-    el('th',{text:'買'}),
-    el('th',{text:'賣'}),
-    el('th',{text:'買進%'}),
-    el('th',{text:'K線'}),
-  )));
+  const thead = el('thead'); const hr = el('tr');
+  ['券商','買','賣','買進%','繪圖'].forEach(t=>hr.appendChild(el('th',{text:t})));
+  thead.appendChild(hr); tbl.appendChild(thead);
   const tbody = el('tbody');
   list.forEach(row=>{
     const brName = row['券商'];
-    const brInfo = brokerMap[brName] || Object.values(brokerMap).find(v=>brName.includes(v.hq_name)||v.hq_name.includes(brName));
     const tr = el('tr');
     tr.appendChild(el('td',{text:brName}));
     tr.appendChild(el('td',{text:(row['買']||0).toLocaleString()}));
     tr.appendChild(el('td',{text:(row['賣']||0).toLocaleString()}));
     tr.appendChild(el('td',{text:row['買進%']+'%'}));
     const td = el('td');
-    if(brInfo){
-      td.appendChild(el('button',{class:'link-btn',text:'📊',onclick:()=>switchToT4(sid,brName)}));
-    }
+    td.appendChild(el('button',{class:'link-btn',text:'📊',onclick:()=>switchToT4(sid,brName)}));
     tr.appendChild(td);
     tbody.appendChild(tr);
   });
