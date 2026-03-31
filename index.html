@@ -909,6 +909,41 @@ function switchToT4(sid, brName){
 
 $('t4-draw-btn').onclick = drawChart;
 
+async function fetchYahooKline(sid, startY) {
+  // 計算 range
+  const startDate = new Date(startY);
+  const now = new Date();
+  const diffYears = (now - startDate) / (1000 * 60 * 60 * 24 * 365);
+  const range = diffYears > 10 ? '20y' : diffYears > 5 ? '10y' : diffYears > 2 ? '5y' : '2y';
+
+  for (const suffix of ['.TW', '.TWO']) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sid}${suffix}?range=${range}&interval=1d&includePrePost=false`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const json = await res.json();
+      const result = json?.chart?.result?.[0];
+      if (!result) continue;
+      const timestamps = result.timestamps || result.timestamp;
+      const quotes = result.indicators?.quote?.[0];
+      if (!timestamps || !quotes) continue;
+      const data = [];
+      for (let i = 0; i < timestamps.length; i++) {
+        const o = quotes.open?.[i], h = quotes.high?.[i];
+        const l = quotes.low?.[i],  c = quotes.close?.[i];
+        if (c == null || isNaN(c)) continue;
+        const d = new Date(timestamps[i] * 1000);
+        const dateStr = d.toISOString().split('T')[0];
+        data.push({ Date: dateStr, Open: o, High: h, Low: l, Close: c });
+      }
+      // 過濾 start 之後的資料
+      const filtered = data.filter(d => d.Date >= startY);
+      if (filtered.length > 0) return { data: filtered };
+    } catch(e) { continue; }
+  }
+  throw new Error(`找不到 ${sid} 的K線資料`);
+}
+
 async function drawChart(){
   const sid    = $('t4-sid').value.trim().toUpperCase();
   const brName = $('t4-br').value;
@@ -923,7 +958,7 @@ async function drawChart(){
 
   try {
     const [klineRes, histRes] = await Promise.all([
-      apiFetch(`/api/stock/kline?sid=${sid}&start=${startY}`),
+      fetchYahooKline(sid, startY),
       apiFetch(`/api/stock/broker_history?sid=${sid}&br_id=${brInfo.br_id}&start=${startY}`),
     ]);
 
