@@ -209,11 +209,32 @@ tr:hover td{background:rgba(255,255,255,.03)}
 }
 .vip-add-btn:hover{border-color:var(--accent);color:var(--accent)}
 
-/* ── Responsive ── */
+/* ── Responsive / Mobile ── */
 @media(max-width:768px){
-  .sidebar{width:100%;height:auto;flex-direction:row;flex-wrap:wrap}
-  .app-layout{flex-direction:column}
-  .main-content{padding:12px}
+  :root{--sidebar:100%}
+  .app-layout{flex-direction:column;height:auto;overflow:visible}
+  .sidebar{
+    width:100%;height:auto;flex-direction:column;
+    border-right:none;border-bottom:1px solid var(--border);
+  }
+  .sidebar-nav{display:flex;flex-wrap:wrap;gap:4px;padding:8px}
+  .nav-btn{flex:1;min-width:80px;text-align:center;padding:8px 4px;font-size:.8rem}
+  .sidebar-vip{max-height:50vh;overflow-y:auto}
+  .sidebar-logout{padding:8px}
+  .main-content{padding:10px;overflow:visible}
+  .ctrl-row{flex-direction:column;gap:8px}
+  .ctrl-group{width:100%}
+  .ctrl-group select,.ctrl-group input[type=text],.ctrl-group input[type=date]{width:100%;min-width:unset}
+  .radio-group{flex-wrap:wrap}
+  #chart-wrapper{height:60vh;min-height:320px}
+  .chart-legend{font-size:.7rem;max-width:180px;padding:6px 10px}
+  .chart-controls{flex-direction:column;gap:6px}
+  .list-tabs{gap:4px}
+  .list-tab{flex:1;text-align:center;font-size:.8rem;padding:6px}
+  table{font-size:.75rem}
+  th,td{padding:5px 6px}
+  .login-box{width:90%;padding:24px}
+  .section-title{font-size:1rem}
 }
 </style>
 </head>
@@ -776,29 +797,27 @@ function renderStockTable(wrapId, list, colB, colS, brName, brId, title, side){
   const wrap = $(wrapId);
   if(!list.length){ wrap.innerHTML=`<div style="color:var(--text2);font-size:.85rem;padding:8px 0">${title} — 無資料</div>`; return; }
   const tbl = el('table',{class:'wl-table'});
-  const thead = el('thead'); const hr = el('tr');
-  ['股票','買進','賣出','佔%','K線','繪圖'].forEach(t=>hr.appendChild(el('th',{text:t})));
-  thead.appendChild(hr); tbl.appendChild(thead);
+  const thead = el('thead');
+  thead.appendChild(tr(th('代號'),th('名稱'),th('買進'),th('賣出'),th('佔%'),th('K線'),th('繪圖')));
+  tbl.appendChild(thead);
   const tbody = el('tbody');
   list.forEach(row=>{
-    const sid = row['股票代號'];
-    const sname = row['股票名稱']||'';
+    const sid = String(row['股票代號']||'').trim();
+    // 股票名稱欄位可能包含代號+名稱，只取名稱部分
+    let rawName = String(row['股票名稱']||'').trim();
+    // 若名稱開頭是代號，去掉代號只留名稱
+    const sname = rawName.replace(/^\d+[A-Za-z]?\s*/, '').trim() || rawName;
     const kUrl = `https://fubon-ebrokerdj.fbs.com.tw/z/zc/zcw/zcw1_${sid}.djhtm`;
-    const tr = el('tr');
-    tr.appendChild(el('td',{text:`${sid} ${sname}`}));
-    tr.appendChild(el('td',{text:(row[colB]||0).toLocaleString()}));
-    tr.appendChild(el('td',{text:(row[colS]||0).toLocaleString()}));
-    tr.appendChild(el('td',{text:(side==='buy'?row['買%']:row['賣%'])+'%'}));
-    const linkTd = el('td');
-    linkTd.appendChild(el('a',{class:'link-btn',href:kUrl,target:'_blank',text:'📈'}));
-    tr.appendChild(linkTd);
-    const addTd = el('td');
-    const addBtn = el('button',{class:'link-btn',text:'📊',onclick:()=>{
-      switchToT4(sid, brName);
-    }});
-    addTd.appendChild(addBtn);
-    tr.appendChild(addTd);
-    tbody.appendChild(tr);
+    const drawBtn = el('button',{class:'link-btn',text:'📊'});
+    drawBtn.onclick = ()=>{ switchToT4(sid, brName); };
+    tbody.appendChild(tr(
+      td({text:sid}), td({text:sname}),
+      td({text:(row[colB]||0).toLocaleString()}),
+      td({text:(row[colS]||0).toLocaleString()}),
+      td({text:(side==='buy'?row['買%']:row['賣%'])+'%'}),
+      td(el('a',{class:'link-btn',href:kUrl,target:'_blank',text:'📈'})),
+      td(drawBtn)
+    ));
   });
   tbl.appendChild(tbody);
   wrap.innerHTML=`<div style="font-weight:600;margin:12px 0 6px">${title} — 共 ${list.length} 檔</div>`;
@@ -1144,19 +1163,28 @@ function mergeMarkers(markers){
   return Object.values(merged).sort((a,b)=>a.time>b.time?1:-1);
 }
 
-// ── Render Chart ──
 function renderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid, stockName, brName){
   $('chart-wrapper').style.display='block';
   if(currentChart){ try{currentChart.remove();}catch(e){} currentChart=null; }
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid, stockName, brName);
+    });
+  });
+}
+
+function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid, stockName, brName){
   const container = $('chart-container');
   container.innerHTML='';
+  const w = container.clientWidth || window.innerWidth;
+  const h = container.clientHeight || Math.max(400, window.innerHeight - 280);
 
   const chart = LightweightCharts.createChart(container,{
     layout:{backgroundColor:'#0e1117',textColor:'#d1d4dc'},
-    watermark:{color:'rgba(255,255,255,0.06)',visible:true,text:`${sid} ${stockName}`,fontSize:72,horzAlign:'center',vertAlign:'center'},
+    watermark:{color:'rgba(255,255,255,0.06)',visible:true,text:`${sid} ${stockName}`,fontSize:60,horzAlign:'center',vertAlign:'center'},
     grid:{vertLines:{visible:false},horzLines:{visible:false}},
     crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
-    width:container.clientWidth, height:container.clientHeight,
+    width:w, height:h,
   });
   currentChart=chart;
   chart.priceScale('right').applyOptions({scaleMargins:{top:0.02,bottom:0.45}});
@@ -1232,10 +1260,13 @@ function renderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid, st
   });
 
   new ResizeObserver(()=>{
-    chart.applyOptions({width:container.clientWidth,height:container.clientHeight});
-    chart.timeScale().fitContent();
+    if(currentChart){
+      currentChart.applyOptions({width:container.clientWidth||window.innerWidth,height:container.clientHeight||400});
+      currentChart.timeScale().fitContent();
+    }
   }).observe(container);
-  setTimeout(()=>chart.timeScale().fitContent(),100);
+  setTimeout(()=>{ if(currentChart) currentChart.timeScale().fitContent(); },200);
+  currentChart = chart;
 }
 
 // ══════════════════════════════════════
@@ -1347,48 +1378,52 @@ function initVipPanel(){
     const input=$(id), valEl=$(id+'-val');
     if(input&&valEl){ input.oninput=()=>valEl.textContent=input.value; }
   });
-  // 週期切換只重載資料，不自動套用篩選
-  $('vip-period').onchange = ()=> loadVipData();
-  $('vip-apply-btn').onclick = ()=> applyVipFilter();
-  // 載入資料但不自動套用篩選，等使用者按「套用篩選」
-  loadVipData();
+  $('vip-period').onchange = ()=>{ vipScanData=[]; $('vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem">週期已切換，請按「套用篩選」載入</div>'; };
+  $('vip-apply-btn').onclick = ()=> loadAndFilterVip();
+  $('vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem;padding:8px 0">請設定篩選條件後按「🔍 套用篩選」</div>';
 }
 
-async function loadVipData(){
+async function loadAndFilterVip(){
+  // 若還沒載入或週期切換了才重新抓
   const sheet=$('vip-period').value;
-  $('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入掃描資料...</div>';
-  $('vip-caption').textContent='';
-  try {
-    vipScanData = await apiFetch(`/api/vip/scan?sheet=${sheet}`);
-    const today=new Date();
-    vipScanData.forEach(row=>{
-      // 從最新訊號日欄位取日期（優先），若無則從訊號摘要解析
-      let latest=null;
-      const latestCol=row['最新訊號日'];
-      if(latestCol){ latest=new Date(String(latestCol).replace(/\//g,'-')); }
-      if(!latest||isNaN(latest)){
-        const dates=(row['訊號摘要']||'').match(/\d{4}[\/\-]\d{2}[\/\-]\d{2}/g)||[];
-        dates.forEach(d=>{ const dt=new Date(d.replace(/\//g,'-')); if(!latest||dt>latest) latest=dt; });
-      }
-      row._latestDate=latest;
-      let score=0;
-      score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;
-      const scale=row['金額(萬)']?parseFloat(row['金額(萬)']||0):parseFloat(row['張數']||0)/10;
-      score+=Math.min(scale/500,1)*40;
-      if(latest&&!isNaN(latest)){ const da=Math.floor((today-latest)/86400000); score+=Math.max(0,20-da*0.3); }
-      const s=row['訊號摘要']||'';
-      if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL'))) score+=10;
-      row._score=Math.round(score*10)/10;
-      const dir=row['方向']||'';
-      const hasW=s.includes('WS')||s.includes('WL'), hasM=s.includes('MS')||s.includes('ML');
-      const isBuy=dir==='買進', isSell=dir==='賣出';
-      row._match=(hasW&&isBuy)||(hasM&&isSell)?'🟢最佳':hasM&&isBuy?'🟡參考':hasW&&isSell?'🔴注意':'⚪未知';
-    });
-    $('vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem;padding:8px 0">資料已載入，請設定篩選條件後按「套用篩選」</div>';
-  } catch(e){
-    $('vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`;
+  if(!vipScanData.length || vipScanData._sheet!==sheet){
+    $('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入掃描資料中...</div>';
+    try {
+      const raw = await apiFetch(`/api/vip/scan?sheet=${sheet}`);
+      const today=new Date();
+      raw.forEach(row=>{
+        let latest=null;
+        const latestCol=row['最新訊號日'];
+        if(latestCol){ latest=new Date(String(latestCol).replace(/\//g,'-')); }
+        if(!latest||isNaN(latest)){
+          const dates=(row['訊號摘要']||'').match(/\d{4}[\/\-]\d{2}[\/\-]\d{2}/g)||[];
+          dates.forEach(d=>{ const dt=new Date(d.replace(/\//g,'-')); if(!latest||dt>latest) latest=dt; });
+        }
+        row._latestDate=latest;
+        let score=0;
+        score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;
+        const scale=row['金額(萬)']?parseFloat(row['金額(萬)']||0):parseFloat(row['張數']||0)/10;
+        score+=Math.min(scale/500,1)*40;
+        if(latest&&!isNaN(latest)){ const da=Math.floor((today-latest)/86400000); score+=Math.max(0,20-da*0.3); }
+        const s=row['訊號摘要']||'';
+        if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL'))) score+=10;
+        row._score=Math.round(score*10)/10;
+        const dir=row['方向']||'';
+        const hasW=s.includes('WS')||s.includes('WL'), hasM=s.includes('MS')||s.includes('ML');
+        const isBuy=dir==='買進', isSell=dir==='賣出';
+        row._match=(hasW&&isBuy)||(hasM&&isSell)?'🟢最佳':hasM&&isBuy?'🟡參考':hasW&&isSell?'🔴注意':'⚪未知';
+      });
+      vipScanData = raw;
+      vipScanData._sheet = sheet;
+    } catch(e){
+      $('vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`;
+      return;
+    }
   }
+  applyVipFilter();
 }
+
+async function loadVipData(){ await loadAndFilterVip(); }
 
 function applyVipFilter(){
   const days=parseInt($('vip-days').value)||60;
