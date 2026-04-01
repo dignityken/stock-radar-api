@@ -1049,25 +1049,27 @@ async function drawChart(){
     const stockName = klineRes.stock_name || histRes?.stock_name || '';
     const volMap = {};
     if(histRes) (histRes.records||[]).forEach(r=>{ volMap[r.Date]=r['買賣超']; });
+    const is60m = (periodVal === '60m');
 
-    // 合併並 resample（60m 不 resample）
+    // 合併
     let merged = kdata.map(d=>({
-      date: d.Date,
+      date: d.Date,  // 60m 是 Unix timestamp（數字），其他是 YYYY-MM-DD
       open: d.Open, high: d.High, low: d.Low, close: d.Close,
       vol: volMap[d.Date]||0,
     }));
 
-    // 60m 不做 resample；日/週/月線做原有邏輯
-    if(periodVal==='W') merged = resampleWeekly(merged);
-    else if(periodVal==='M') merged = resampleMonthly(merged);
+    // 只有日/週/月才 resample
+    if(!is60m){
+      if(periodVal==='W') merged = resampleWeekly(merged);
+      else if(periodVal==='M') merged = resampleMonthly(merged);
+    }
 
-    // BB (52)
+    // BB & MACD
     merged = calcBB(merged, 52, 2);
-    // MACD
     merged = calcMACDFull(merged, 12,26,9, 'M1');
     merged = calcMACDFull(merged, 26,52,18, 'M2');
 
-    // Divergence markers
+    // Divergence markers（所有週期都計算）
     const {priceMarkers:pm1, macdMarkers:mm1} = getDivMarkers(merged,'M1_macd','M1_hist','S');
     const {priceMarkers:pm2, macdMarkers:mm2} = getDivMarkers(merged,'M2_macd','M2_hist','L');
     const allPriceMarkers = mergeMarkers([...pm1,...pm2]);
