@@ -415,40 +415,28 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 
       <!-- TAB4: K線圖 -->
       <div id="tab-t4" style="display:none">
+        <!-- 控制列：手機版緊湊單行 -->
         <div class="chart-controls">
-          <div class="ctrl-group">
-            <label>股票代號</label>
-            <input type="text" id="t4-sid" value="6488" style="width:90px">
-          </div>
-          <div class="ctrl-group" style="flex:1">
-            <label>搜尋分點</label>
-            <select id="t4-br" style="width:100%"></select>
-          </div>
-          <div class="ctrl-group">
-            <label>週期</label>
-            <div class="radio-group">
-              <input type="radio" name="t4-period" id="t4-d" value="D" checked><label for="t4-d">日</label>
-              <input type="radio" name="t4-period" id="t4-w" value="W"><label for="t4-w">週</label>
-              <input type="radio" name="t4-period" id="t4-m" value="M"><label for="t4-m">月</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%">
+            <input type="text" id="t4-sid" value="6488" style="width:72px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
+            <select id="t4-br" style="flex:1;min-width:120px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem"></select>
+            <div class="radio-group" style="gap:3px">
+              <input type="radio" name="t4-period" id="t4-d" value="D" checked><label for="t4-d" style="padding:5px 9px;font-size:.8rem">日</label>
+              <input type="radio" name="t4-period" id="t4-w" value="W"><label for="t4-w" style="padding:5px 9px;font-size:.8rem">週</label>
+              <input type="radio" name="t4-period" id="t4-m" value="M"><label for="t4-m" style="padding:5px 9px;font-size:.8rem">月</label>
             </div>
-          </div>
-          <div class="ctrl-group">
-            <label>K棒數</label>
-            <select id="t4-days">
+            <select id="t4-days" style="width:70px;padding:6px 4px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.82rem">
               <option value="300">300</option>
               <option value="500">500</option>
               <option value="1000">1000</option>
             </select>
-          </div>
-          <div class="ctrl-group">
-            <label>下載範圍</label>
-            <select id="t4-start">
-              <option value="2015-01-01">2015起 (快)</option>
-              <option value="2000-01-01">2000起 (慢)</option>
+            <select id="t4-start" style="width:90px;padding:6px 4px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.78rem">
+              <option value="2015-01-01">2015起</option>
+              <option value="2000-01-01">2000起</option>
             </select>
+            <button class="btn-search" id="t4-draw-btn" style="padding:6px 14px">🎨 繪圖</button>
+            <button class="btn-secondary" id="t4-fav-btn" style="padding:6px 10px">❤️</button>
           </div>
-          <button class="btn-search" id="t4-draw-btn">🎨 繪圖</button>
-          <button class="btn-secondary" id="t4-fav-btn">❤️ 存入最愛</button>
         </div>
         <div id="t4-status"></div>
         <!-- 最愛 / 工作組：預設收合 -->
@@ -1198,7 +1186,7 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   m1s.setMarkers(macdMarkers1);
   const s1s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m1',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
   s1s.setData(plotData.map(d=>({time:d.date,value:d.M1_sig})));
-  chart.priceScale('m1').applyOptions({scaleMargins:{top:0.68,bottom:0.18},visible:false});
+  chart.priceScale('m1').applyOptions({scaleMargins:{top:0.62,bottom:0.25},visible:false});
 
   const h2s=chart.addHistogramSeries({priceScaleId:'m2',lastValueVisible:false,priceLineVisible:false});
   h2s.setData(plotData.map(d=>({time:d.date,value:d.M2_hist,color:d.M2_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));
@@ -1207,7 +1195,7 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   m2s.setMarkers(macdMarkers2);
   const s2s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m2',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
   s2s.setData(plotData.map(d=>({time:d.date,value:d.M2_sig})));
-  chart.priceScale('m2').applyOptions({scaleMargins:{top:0.85,bottom:0.0},visible:false});
+  chart.priceScale('m2').applyOptions({scaleMargins:{top:0.80,bottom:0.02},visible:false});
 
   const dictByTime={};
   plotData.forEach(d=>dictByTime[d.date]=d);
@@ -1233,13 +1221,16 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   updateLegend(plotData[plotData.length-1]);
 
   chart.subscribeCrosshairMove(param=>{
-    if(!param.time) return;
+    if(!param.time) return; // 不重置，保留最後一根
     let timeKey = param.time;
-    if(typeof timeKey === 'number'){
-      const dt = new Date(timeKey*1000);
-      timeKey = dt.toISOString().split('T')[0];
+    if(typeof timeKey === 'object' && timeKey.year){
+      timeKey = `${timeKey.year}-${String(timeKey.month).padStart(2,'0')}-${String(timeKey.day).padStart(2,'0')}`;
+    } else if(typeof timeKey === 'number'){
+      timeKey = new Date(timeKey*1000).toISOString().split('T')[0];
+    } else {
+      timeKey = String(timeKey);
     }
-    const d=dictByTime[timeKey];
+    const d = dictByTime[timeKey];
     if(d) updateLegend(d);
   });
 
