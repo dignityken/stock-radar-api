@@ -2,6 +2,8 @@
 stock-radar FastAPI 後端
 對應 Streamlit app.py 的所有資料邏輯
 """
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -348,7 +350,7 @@ def broker_stocks(hq_id: str, br_id: str, start: str, end: str, unit: str = "sha
     col_sell = "賣出金額" if unit == "amount" else "賣出張數"
     url = f"https://fubon-ebrokerdj.fbs.com.tw/z/zg/zgb/zgb0.djhtm?a={hq_id}&b={br_id}&c={c_param}&e={start}&f={end}"
     try:
-        res = requests.get(url, headers=HEADERS, verify=False, timeout=15)
+        res = requests.get(url, headers=HEADERS, verify=False, timeout=25)
         res.encoding = "big5"
         def extract_name(match):
             m = re.search(r"GenLink2stk\s*\(\s*['\"](?:AS)?([^'\"]+)['\"]\s*,\s*['\"]([^'\"]+)['\"]\s*\)", match.group(0), re.IGNORECASE)
@@ -394,7 +396,7 @@ def stock_brokers(sid: str, start: str, end: str):
     """TAB2：特定股票的所有買賣券商"""
     url = f"https://fubon-ebrokerdj.fbs.com.tw/z/zc/zco/zco.djhtm?a={sid}&e={start}&f={end}"
     try:
-        res = requests.get(url, headers=HEADERS, verify=False, timeout=15)
+        res = requests.get(url, headers=HEADERS, verify=False, timeout=25)
         res.encoding = "big5"
         tables = pd.read_html(StringIO(res.text))
         df_all = pd.DataFrame()
