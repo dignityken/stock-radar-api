@@ -504,14 +504,22 @@ def stock_kline(sid: str, start: str = "2015-01-01"):
 # ==========================================
 # VIP 掃描結果
 # ==========================================
+_vip_cache: dict = {}  # {sheet: {"data": [...], "ts": timestamp}}
+_VIP_CACHE_TTL = 300  # 5分鐘
+
 @app.get("/api/vip/scan")
 def vip_scan(sheet: str = "ScanResult", user: dict = Depends(get_current_user)):
     if user.get("role") != "vip":
         raise HTTPException(403, "VIP 限定")
+    now = datetime.datetime.now().timestamp()
+    cached = _vip_cache.get(sheet)
+    if cached and (now - cached["ts"]) < _VIP_CACHE_TTL:
+        return cached["data"]
     ws = get_worksheet(sheet)
     if not ws: return []
     try:
         data = ws.get_all_records()
+        _vip_cache[sheet] = {"data": data, "ts": now}
         return data
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -551,6 +559,24 @@ def save_working_group(req: WatchlistSaveRequest, user: dict = Depends(get_curre
 @app.get("/health")
 def health():
     return {"status": "ok", "time": datetime.datetime.now().isoformat()}
+
+@app.on_event("startup")
+async def warmup_cache():
+    """啟動時預先暖機 VIP 快取，避免第一次請求太慢"""
+    import asyncio
+    async def _warm():
+        await asyncio.sleep(3)  # 等 GSheets 連線初始化
+        try:
+            now = datetime.datetime.now().timestamp()
+            for sheet in ["ScanResult", "ScanResult_W"]:
+                ws = get_worksheet(sheet)
+                if ws:
+                    data = ws.get_all_records()
+                    _vip_cache[sheet] = {"data": data, "ts": now}
+                    print(f"[warmup] {sheet}: {len(data)} rows cached")
+        except Exception as e:
+            print(f"[warmup] failed: {e}")
+    asyncio.create_task(_warm())
 
 @app.get("/")
 def root():
