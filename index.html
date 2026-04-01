@@ -119,9 +119,9 @@ tr:hover td{background:rgba(255,255,255,.03)}
 
 /* TAB4 */
 .chart-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:10px;background:var(--bg2);border-radius:8px;margin-bottom:10px}
-#chart-wrapper{position:relative;width:100%;height:calc(100vh - 260px);min-height:380px;background:var(--bg);border-radius:8px;overflow:hidden}
+#chart-wrapper{position:relative;width:100%;height:calc(100vh - 240px);min-height:500px;background:var(--bg);border-radius:8px;overflow:hidden}
 #chart-container{width:100%;height:100%}
-.chart-legend{position:absolute;left:10px;top:10px;z-index:99;background:rgba(14,17,23,.92);padding:8px 12px;border-radius:6px;border:1px solid var(--border);font-size:.78rem;pointer-events:none;max-width:220px}
+.chart-legend{position:absolute;left:10px;top:10px;z-index:99;background:rgba(14,17,23,.92);padding:8px 12px;border-radius:6px;border:1px solid var(--border);font-size:.78rem;pointer-events:none;max-width:240px}
 .legend-title{color:var(--accent);font-weight:700;font-size:.85rem;margin-bottom:5px;border-bottom:1px solid var(--border);padding-bottom:3px}
 .legend-row{display:flex;justify-content:space-between;gap:10px;margin-bottom:2px}
 .legend-lbl{color:var(--text2)}
@@ -129,8 +129,8 @@ tr:hover td{background:rgba(255,255,255,.03)}
 .legend-macd{margin-top:3px;font-size:.72rem;color:var(--text2);line-height:1.4}
 @media(max-width:768px){
   .chart-controls{flex-direction:column;gap:6px}
-  #chart-wrapper{height:52vh;min-height:280px}
-  .chart-legend{font-size:.68rem;max-width:150px;padding:5px 8px}
+  #chart-wrapper{height:75vh;min-height:480px}
+  .chart-legend{font-size:.72rem;max-width:200px;padding:6px 10px}
 }
 
 /* Collapsible */
@@ -1189,7 +1189,7 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
 
   const volS=chart.addHistogramSeries({priceScaleId:'vol',lastValueVisible:false,priceLineVisible:false});
   volS.setData(plotData.map(d=>({time:d.date,value:d.vol,color:d.vol>0?'rgba(239,83,80,0.8)':d.vol<0?'rgba(38,166,154,0.8)':'rgba(120,120,120,0.5)'})));
-  chart.priceScale('vol').applyOptions({scaleMargins:{top:0.58,bottom:0.28},visible:false});
+  chart.priceScale('vol').applyOptions({scaleMargins:{top:0.55,bottom:0.35},visible:false});
 
   const h1s=chart.addHistogramSeries({priceScaleId:'m1',lastValueVisible:false,priceLineVisible:false});
   h1s.setData(plotData.map(d=>({time:d.date,value:d.M1_hist,color:d.M1_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));
@@ -1198,7 +1198,7 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   m1s.setMarkers(macdMarkers1);
   const s1s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m1',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
   s1s.setData(plotData.map(d=>({time:d.date,value:d.M1_sig})));
-  chart.priceScale('m1').applyOptions({scaleMargins:{top:0.72,bottom:0.15},visible:false});
+  chart.priceScale('m1').applyOptions({scaleMargins:{top:0.68,bottom:0.18},visible:false});
 
   const h2s=chart.addHistogramSeries({priceScaleId:'m2',lastValueVisible:false,priceLineVisible:false});
   h2s.setData(plotData.map(d=>({time:d.date,value:d.M2_hist,color:d.M2_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));
