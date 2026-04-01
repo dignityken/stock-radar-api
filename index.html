@@ -231,8 +231,23 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
             <input type="range" id="vip-pct" min="0" max="100" value="60" step="5">
           </div>
           <div>
+            <label>最低張數</label>
+            <input type="number" id="vip-vol" value="20" min="0" step="10" style="width:100%;padding:5px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.8rem">
+          </div>
             <label>分點過濾</label>
             <select id="vip-broker-sel"><option>全部分點</option></select>
+          </div>
+          <div>
+            <label>排序依據</label>
+            <select id="vip-sort">
+              <option value="_score">強度</option>
+              <option value="股票名稱">股票名稱</option>
+              <option value="_match">符合度</option>
+              <option value="張數">張數</option>
+              <option value="金額(萬)">金額(萬)</option>
+              <option value="佔比%">佔比%</option>
+              <option value="最新訊號日">最新訊號日</option>
+            </select>
           </div>
           <button class="vip-apply-btn" id="vip-apply-btn">🔍 套用篩選</button>
         </div>
@@ -261,7 +276,17 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
               <div><label>方向</label><select id="m-vip-dir"><option>全部</option><option>買進</option><option>賣出</option></select></div>
               <div><div class="vip-row"><label>最低強度</label><span id="m-vip-score-val">60</span></div><input type="range" id="m-vip-score" min="0" max="120" value="60" step="5"></div>
               <div><div class="vip-row"><label>最低佔比%</label><span id="m-vip-pct-val">60</span></div><input type="range" id="m-vip-pct" min="0" max="100" value="60" step="5"></div>
+              <div><label>最低張數</label><input type="number" id="m-vip-vol" value="20" min="0" step="10" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem"></div>
               <div><label>分點過濾</label><select id="m-vip-broker-sel"><option>全部分點</option></select></div>
+              <div><label>排序依據</label><select id="m-vip-sort">
+                <option value="_score">強度</option>
+                <option value="股票名稱">股票名稱</option>
+                <option value="_match">符合度</option>
+                <option value="張數">張數</option>
+                <option value="金額(萬)">金額(萬)</option>
+                <option value="佔比%">佔比%</option>
+                <option value="最新訊號日">最新訊號日</option>
+              </select></div>
               <button class="vip-apply-btn" id="m-vip-apply-btn">🔍 套用篩選</button>
             </div>
             <div id="m-vip-caption" style="font-size:.75rem;color:var(--text2);margin:4px 0"></div>
@@ -280,8 +305,10 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
             <select id="t1-hq" style="min-width:160px"></select>
           </div>
           <div class="ctrl-group">
-            <label>分點</label>
-            <select id="t1-br" style="min-width:180px"></select>
+            <label>分點（可輸入搜尋）</label>
+            <input type="text" id="t1-br-input" list="t1-br-list" placeholder="輸入分點名稱..." style="min-width:180px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.88rem">
+            <datalist id="t1-br-list"></datalist>
+            <input type="hidden" id="t1-br">
           </div>
           <div class="ctrl-group">
             <label>起始</label>
@@ -686,10 +713,14 @@ function buildT1Selects(){
     hqSel.appendChild(el('option',{value:hq,text:hq}));
   });
   hqSel.onchange = ()=>{
-    const br = $('t1-br');
-    br.innerHTML='';
+    const list = $('t1-br-list');
+    list.innerHTML='';
     const branches = brokerTree[hqSel.value]?.branches||[];
-    [...branches].sort().forEach(b=>br.appendChild(el('option',{value:b,text:b})));
+    [...branches].sort().forEach(b=>{
+      const opt=document.createElement('option'); opt.value=b; list.appendChild(opt);
+    });
+    // 預設選第一個
+    if(branches.length>0) $('t1-br-input').value=[...branches].sort()[0];
   };
   hqSel.dispatchEvent(new Event('change'));
 }
@@ -721,7 +752,7 @@ function buildT4BrSelect(){
 // ══════════════════════════════════════
 $('t1-search-btn').onclick = async ()=>{
   const hqName = $('t1-hq').value;
-  const brName = $('t1-br').value;
+  const brName = $('t1-br-input').value.trim();
   const hqData = brokerTree[hqName];
   if(!hqData){ showStatus('t1-status','找不到券商','error'); return; }
   const hqId = hqData.bid;
@@ -1422,6 +1453,7 @@ function applyVipFilter(){
   const dir=$('vip-dir').value;
   const minScore=parseInt($('vip-score').value)||0;
   const minPct=parseInt($('vip-pct').value)||0;
+  const minVol=parseInt($('vip-vol').value)||0;
   // 用字串比較日期（YYYY-MM-DD 字串可以直接比較大小）
   const cutoffDate=new Date(); cutoffDate.setDate(cutoffDate.getDate()-days);
   const cutoff=cutoffDate.toISOString().slice(0,10);
@@ -1431,8 +1463,16 @@ function applyVipFilter(){
     if(dir!=='全部'&&r['方向']!==dir) return false;
     if(r._score<minScore) return false;
     if(parseFloat(r['佔比%']||0)<minPct) return false;
+    if(parseFloat(r['張數']||0)<minVol) return false;
     return true;
-  }).sort((a,b)=>b._score-a._score);
+  }).sort((a,b)=>{
+    const sortBy=$('vip-sort')?.value||'_score';
+    if(sortBy==='股票名稱') return String(a['股票名稱']||'').localeCompare(String(b['股票名稱']||''));
+    if(sortBy==='最新訊號日') return (b._latestDate||'')>(a._latestDate||'')?1:-1;
+    if(sortBy==='_match') return String(a._match||'').localeCompare(String(b._match||''));
+    const va=parseFloat(a[sortBy]??0)||a._score||0, vb=parseFloat(b[sortBy]??0)||b._score||0;
+    return vb-va;
+  });
 
   // 更新分點選單
   const brokerSel=$('vip-broker-sel');
@@ -1550,6 +1590,7 @@ async function mobileApplyVipFilter(){
   const dir=$('m-vip-dir').value;
   const minScore=parseInt($('m-vip-score').value)||0;
   const minPct=parseInt($('m-vip-pct').value)||0;
+  const minVol=parseInt($('m-vip-vol').value)||0;
   const cutoffDate=new Date(); cutoffDate.setDate(cutoffDate.getDate()-days);
   const cutoff=cutoffDate.toISOString().slice(0,10);
   const selBr=$('m-vip-broker-sel').value;
@@ -1559,8 +1600,16 @@ async function mobileApplyVipFilter(){
     if(dir!=='全部'&&r['方向']!==dir) return false;
     if(r._score<minScore) return false;
     if(parseFloat(r['佔比%']||0)<minPct) return false;
+    if(parseFloat(r['張數']||0)<minVol) return false;
     return true;
-  }).sort((a,b)=>b._score-a._score);
+  }).sort((a,b)=>{
+    const sortBy=$('m-vip-sort')?.value||'_score';
+    if(sortBy==='股票名稱') return String(a['股票名稱']||'').localeCompare(String(b['股票名稱']||''));
+    if(sortBy==='最新訊號日') return (b._latestDate||'')>(a._latestDate||'')?1:-1;
+    if(sortBy==='_match') return String(a._match||'').localeCompare(String(b._match||''));
+    const va=parseFloat(a[sortBy]??0)||a._score||0, vb=parseFloat(b[sortBy]??0)||b._score||0;
+    return vb-va;
+  });
 
   // 更新分點選單
   const brokerSel=$('m-vip-broker-sel');
