@@ -169,8 +169,10 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
   box-shadow:-4px 0 20px rgba(0,0,0,.4);
 }
 #vip-overlay.open{display:flex!important}
-#vip-overlay-inner{display:flex;flex-direction:column;height:100%;padding:14px 20px;gap:10px;min-height:0}
-#vip-overlay-header{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-bottom:10px;border-bottom:1px solid var(--border)}
+#vip-overlay-inner{display:flex;flex-direction:column;height:100%;padding:14px 20px;gap:8px;box-sizing:border-box}
+#vip-overlay-header{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-bottom:8px;border-bottom:1px solid var(--border)}
+#vip-overlay #vip-table-wrap{flex:1;overflow-y:auto;min-height:0}
+#vip-overlay #vip-table-wrap table{width:100%;border-collapse:collapse}
 @media(max-width:768px){#vip-overlay{display:none!important}}
 .note-input{background:transparent;border:none;color:var(--text);font-size:.83rem;width:100%;outline:none}
 .note-input:focus{border-bottom:1px solid var(--accent)}
@@ -1421,9 +1423,17 @@ function initVipPanel(){
     const input=$(id), valEl=$(id+'-val');
     if(input&&valEl){ input.oninput=()=>valEl.textContent=input.value; }
   });
-  $('vip-period').onchange = ()=>{ vipScanData=[]; $('vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem">週期已切換，請按「套用篩選」載入</div>'; };
-  $('vip-apply-btn').onclick = ()=> loadAndFilterVip();
-  $('vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem;padding:8px 0">請設定篩選條件後按「🔍 套用篩選」</div>';
+  $('vip-period').onchange = ()=>{ vipScanData=[]; $('vip-caption').textContent=''; };
+  $('vip-apply-btn').onclick = ()=>{
+    // 立即顯示 loading
+    const btn=$('vip-apply-btn');
+    btn.disabled=true; btn.textContent='⏳ 篩選中...';
+    if(window.innerWidth>768){
+      $('vip-overlay').style.display='flex';
+      $('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>篩選中，請稍候...</div>';
+    }
+    loadAndFilterVip().finally(()=>{ btn.disabled=false; btn.textContent='🔍 套用篩選'; });
+  };
 }
 
 async function loadAndFilterVip(){
@@ -1777,7 +1787,7 @@ async function mobileApplyVipFilter(){
       <span id="vip-overlay-caption" style="font-size:.85rem;color:var(--text2)"></span>
       <button id="vip-overlay-close" style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text2);padding:4px 10px;cursor:pointer;font-size:.8rem">✕ 收起</button>
     </div>
-    <div id="vip-table-wrap" style="flex:1;overflow-y:auto;min-height:0"></div>
+    <div id="vip-table-wrap"></div>
     <div id="vip-sel-wrap"></div>
   </div>
 </div>
