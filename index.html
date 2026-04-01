@@ -160,17 +160,17 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 .vip-add-btn{width:100%;padding:6px;margin-top:6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2);font-size:.75rem}
 .vip-add-btn:hover{border-color:var(--accent);color:var(--accent)}
 
-/* VIP Overlay（桌面版結果面板） */
+/* VIP Overlay（桌面版結果面板，覆蓋 main content） */
 #vip-overlay{
-  display:none;position:fixed;top:0;right:0;bottom:0;
-  width:60vw;max-width:900px;min-width:500px;
-  background:var(--bg2);border-left:2px solid var(--accent);
+  display:none;position:fixed;top:0;bottom:0;
+  left:280px;right:0; /* sidebar 右側開始，覆蓋整個 main content */
+  background:var(--bg);border-left:2px solid var(--accent);
   z-index:300;flex-direction:column;
-  box-shadow:-8px 0 32px rgba(0,0,0,.5);
+  box-shadow:-4px 0 20px rgba(0,0,0,.4);
 }
 #vip-overlay.open{display:flex!important}
-#vip-overlay-inner{display:flex;flex-direction:column;height:100%;padding:12px;gap:8px;min-height:0}
-#vip-overlay-header{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-bottom:8px;border-bottom:1px solid var(--border)}
+#vip-overlay-inner{display:flex;flex-direction:column;height:100%;padding:14px 20px;gap:10px;min-height:0}
+#vip-overlay-header{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-bottom:10px;border-bottom:1px solid var(--border)}
 @media(max-width:768px){#vip-overlay{display:none!important}}
 .note-input{background:transparent;border:none;color:var(--text);font-size:.83rem;width:100%;outline:none}
 .note-input:focus{border-bottom:1px solid var(--accent)}
@@ -522,6 +522,7 @@ let workingGroup = [];
 let vipScanData = [];
 let vipFiltered = [];
 let vipSelected = new Set();
+let vipAllSelected = false; // 全選狀態
 let currentChart = null;
 let currentTab = 't1';
 
@@ -1540,7 +1541,7 @@ function renderVipTable(){
   selAllBtn.style.cssText='padding:6px 10px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
   topBar.appendChild(addBtn); topBar.appendChild(selAllBtn);
 
-  let allSelected=false;
+  let allSelected=vipAllSelected;
   addBtn.onclick=async()=>{
     if(!vipSelected.size){ alert('請先勾選 🗂️ 欄位'); return; }
     let added=0;
@@ -1552,13 +1553,14 @@ function renderVipTable(){
         workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b}); added++;
       }
     });
-    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); allSelected=false; renderVipTable(); alert(`✅ 已加入 ${added} 檔`); }
+    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); vipAllSelected=false; renderVipTable(); alert(`✅ 已加入 ${added} 檔`); }
     else alert('全部已在工作組中');
   };
   selAllBtn.onclick=()=>{
-    allSelected=!allSelected;
-    selAllBtn.textContent=allSelected?'☒ 取消全選':'☑ 全選';
-    if(allSelected) rows.forEach(r=>vipSelected.add(`${r['股票代號']}||${r['分點名稱']}`));
+    vipAllSelected=!vipAllSelected;
+    allSelected=vipAllSelected;
+    selAllBtn.textContent=vipAllSelected?'☒ 取消全選':'☑ 全選';
+    if(vipAllSelected) rows.forEach(r=>vipSelected.add(`${r['股票代號']}||${r['分點名稱']}`));
     else vipSelected.clear();
     renderVipTable();
   };
