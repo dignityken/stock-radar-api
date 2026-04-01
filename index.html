@@ -160,7 +160,18 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 .vip-add-btn{width:100%;padding:6px;margin-top:6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2);font-size:.75rem}
 .vip-add-btn:hover{border-color:var(--accent);color:var(--accent)}
 
-/* Watchlist note input */
+/* VIP Overlay（桌面版結果面板） */
+#vip-overlay{
+  display:none;position:fixed;top:0;right:0;bottom:0;
+  width:60vw;max-width:900px;min-width:500px;
+  background:var(--bg2);border-left:2px solid var(--accent);
+  z-index:300;flex-direction:column;
+  box-shadow:-8px 0 32px rgba(0,0,0,.5);
+}
+#vip-overlay.open{display:flex}
+#vip-overlay-inner{display:flex;flex-direction:column;height:100%;padding:12px;gap:8px;min-height:0}
+#vip-overlay-header{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-bottom:8px;border-bottom:1px solid var(--border)}
+@media(max-width:768px){#vip-overlay{display:none!important}}
 .note-input{background:transparent;border:none;color:var(--text);font-size:.83rem;width:100%;outline:none}
 .note-input:focus{border-bottom:1px solid var(--accent)}
 </style>
@@ -191,12 +202,9 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 
     <!-- SIDEBAR -->
     <div class="sidebar">
-      <div class="sidebar-header" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)">
-        <div>
-          <div class="sidebar-user" id="sb-username">載入中...</div>
-          <div class="sidebar-role" id="sb-role"></div>
-        </div>
-        <button id="layout-toggle-btn" title="切換寬版/窄版" style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text2);padding:4px 8px;font-size:.75rem;cursor:pointer;white-space:nowrap">⇔ 寬版</button>
+      <div class="sidebar-header">
+        <div class="sidebar-user" id="sb-username">載入中...</div>
+        <div class="sidebar-role" id="sb-role"></div>
       </div>
       <div class="sidebar-nav">
         <button class="nav-btn active" data-tab="t1">🚀 特定分點</button>
@@ -205,12 +213,8 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
         <button class="nav-btn" data-tab="t4">📈 K線圖</button>
       </div>
       <!-- VIP 掃描清單 -->
-      <div id="vip-panel" style="display:none">
-        <details id="vip-details">
-          <summary style="cursor:pointer;padding:8px 12px;font-size:.85rem;font-weight:600;color:var(--text2);list-style:none;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border)">
-            📡 VIP 掃描清單 <span style="font-size:.7rem;margin-left:auto">▼</span>
-          </summary>
-          <div style="padding:8px">
+      <div id="vip-panel" style="display:none" class="sidebar-vip">
+        <div style="padding:8px 10px;font-size:.85rem;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);margin-bottom:6px">📡 VIP 掃描清單</div>
         <div class="vip-form" id="vip-filter-form">
           <div>
             <label>K線週期</label>
@@ -241,6 +245,7 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
             <label>最低張數</label>
             <input type="number" id="vip-vol" value="20" min="0" step="10" style="width:100%;padding:5px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.8rem">
           </div>
+          <div>
             <label>分點過濾</label>
             <select id="vip-broker-sel"><option>全部分點</option></select>
           </div>
@@ -257,11 +262,7 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
           </div>
           <button class="vip-apply-btn" id="vip-apply-btn">🔍 套用篩選</button>
         </div>
-        <div id="vip-caption" style="font-size:.75rem;color:var(--text2);margin:4px 0"></div>
-        <div id="vip-table-wrap"></div>
-        <div id="vip-sel-wrap" style="margin-top:6px"></div>
-          </div>
-        </details>
+        <div id="vip-caption" style="font-size:.75rem;color:var(--text2);margin:4px 0 0"></div>
       </div>
       <div class="sidebar-logout">
         <button class="btn-logout" id="logout-btn">登出</button>
@@ -700,16 +701,10 @@ async function initApp(){
     initMobileVipPanel();
   }
 
-  // 版面切換（桌面版才顯示）
-  const layoutBtn=$('layout-toggle-btn');
-  if(window.innerWidth<=768){
-    layoutBtn.style.display='none';
-  } else {
-    layoutBtn.onclick=()=>{
-      const layout=document.querySelector('.app-layout');
-      const isWide=layout.classList.toggle('wide-sidebar');
-      layoutBtn.textContent=isWide?'⇔ 窄版':'⇔ 寬版';
-    };
+  // VIP overlay 關閉按鈕
+  const overlayCloseBtn=$('vip-overlay-close');
+  if(overlayCloseBtn){
+    overlayCloseBtn.onclick=()=>$('vip-overlay').classList.remove('open');
   }
 
   // Tab 切換
@@ -1515,6 +1510,12 @@ function applyVipFilter(){
   brokerSel.onchange=renderVipTable;
 
   $('vip-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${vipFiltered.length} 檔`;
+  // 桌面版：開啟 overlay 顯示結果
+  if(window.innerWidth > 768){
+    const overlay=$('vip-overlay');
+    overlay.classList.add('open');
+    $('vip-overlay-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${vipFiltered.length} 檔`;
+  }
   renderVipTable();
 }
 
@@ -1762,5 +1763,16 @@ async function mobileApplyVipFilter(){
   }
 })();
 </script>
+<!-- VIP 結果 Overlay（桌面版，浮在右側） -->
+<div id="vip-overlay" style="display:none">
+  <div id="vip-overlay-inner">
+    <div id="vip-overlay-header">
+      <span id="vip-overlay-caption" style="font-size:.85rem;color:var(--text2)"></span>
+      <button id="vip-overlay-close" style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text2);padding:4px 10px;cursor:pointer;font-size:.8rem">✕ 收起</button>
+    </div>
+    <div id="vip-table-wrap" style="flex:1;overflow-y:auto;min-height:0"></div>
+    <div id="vip-sel-wrap"></div>
+  </div>
+</div>
 </body>
 </html>
