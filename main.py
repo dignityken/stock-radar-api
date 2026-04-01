@@ -449,27 +449,42 @@ def broker_history(sid: str, br_id: str, start: str = "2015-01-01"):
         raise HTTPException(500, str(e))
 
 @app.get("/api/stock/kline")
-def stock_kline(sid: str, start: str = "2015-01-01"):
-    """TAB4：K線資料 proxy — 繞過 CORS，後端幫前端抓 Yahoo Finance"""
+def stock_kline(sid: str, start: str = "2015-01-01", interval: str = "1d"):
+    """TAB4：K線資料 proxy — 繞過 CORS，後端幫前端抓 Yahoo Finance
+    interval: 1d(日) 1wk(週) 1mo(月) 60m(60分鐘)
+    sid: 台股代號 或 特殊代號如 ^TWII TXF=F
+    """
     import math
-    end = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    # 計算 range 參數
-    try:
-        start_dt = datetime.datetime.strptime(start, "%Y-%m-%d")
-        years = (datetime.datetime.now() - start_dt).days / 365
-        range_str = "20y" if years > 10 else "10y" if years > 5 else "5y" if years > 2 else "2y"
-    except Exception:
-        range_str = "10y"
-
     YAHOO_HEADERS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Accept": "application/json",
     }
 
-    for suffix in [".TW", ".TWO"]:
+    # 60分鐘只能抓最近730天
+    if interval == "60m":
+        range_str = "730d"
+        # 60m 的 timestamp 要轉成含時間的字串
+        def fmt_ts(ts): return datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
+        date_key = "DateTime"
+    else:
+        # 日/週/月線
+        try:
+            start_dt = datetime.datetime.strptime(start, "%Y-%m-%d")
+            years = (datetime.datetime.now() - start_dt).days / 365
+            range_str = "20y" if years > 10 else "10y" if years > 5 else "5y" if years > 2 else "2y"
+        except Exception:
+            range_str = "10y"
+        def fmt_ts(ts): return datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
+        date_key = "Date"
+
+    # 判斷是否為特殊代號（指數/期貨）— 不需要加 .TW/.TWO
+    special = sid.startswith("^") or sid.endswith("=F") or sid.endswith("=X")
+    suffixes = [""] if special else [".TW", ".TWO"]
+
+    for suffix in suffixes:
         ticker = f"{sid}{suffix}"
         try:
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={range_str}&interval=1d&includePrePost=false"
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={range_str}&interval={interval}&includePrePost=false"
             r = requests.get(url, headers=YAHOO_HEADERS, timeout=15)
             if not r.ok:
                 continue
@@ -480,6 +495,8 @@ def stock_kline(sid: str, start: str = "2015-01-01"):
             result = result[0]
             timestamps = result.get("timestamp", [])
             quotes = result.get("indicators", {}).get("quote", [{}])[0]
+            meta = result.get("meta", {})
+            stock_name = meta.get("longName") or meta.get("shortName") or sid
             if not timestamps or not quotes:
                 continue
             data = []
@@ -490,12 +507,13 @@ def stock_kline(sid: str, start: str = "2015-01-01"):
                 l = quotes.get("low", [])[i] if i < len(quotes.get("low", [])) else None
                 if c is None or (isinstance(c, float) and math.isnan(c)):
                     continue
-                date_str = datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
-                if date_str < start:
+                dt_str = fmt_ts(ts)
+                # 日線以上只過濾 start 日期
+                if interval not in ("60m",) and dt_str < start:
                     continue
-                data.append({"Date": date_str, "Open": o, "High": h, "Low": l, "Close": c})
+                data.append({"Date": dt_str, "Open": o, "High": h, "Low": l, "Close": c})
             if data:
-                return {"suffix": suffix, "data": data}
+                return {"suffix": suffix, "data": data, "stock_name": stock_name, "interval": interval}
         except Exception:
             continue
 
