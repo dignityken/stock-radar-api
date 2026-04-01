@@ -62,14 +62,14 @@ button{cursor:pointer}
   .sidebar-header{padding:6px 10px;display:flex;align-items:center;gap:8px}
   .sidebar-user{font-size:.82rem;font-weight:600}
   .sidebar-role{font-size:.68rem;color:var(--text2)}
-  .sidebar-nav{display:flex;gap:2px;padding:4px 6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .sidebar-nav::-webkit-scrollbar{height:2px}
-  .nav-btn{flex:0 0 auto;display:inline-block;padding:6px 10px;font-size:.76rem;white-space:nowrap;background:transparent;border:none;border-radius:5px;color:var(--text2)}
+  .sidebar-nav{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:4px 6px}
+  .nav-btn{display:block;width:100%;padding:6px 4px;font-size:.74rem;white-space:nowrap;background:transparent;border:none;border-radius:5px;color:var(--text2);text-align:center;overflow:hidden;text-overflow:ellipsis}
   .nav-btn.active{background:var(--accent);color:#fff}
-  .sidebar-vip{padding:0}
+  .sidebar-vip{display:none} /* 手機版VIP移到main content */
   .sidebar-logout{padding:4px 6px}
   .btn-logout{padding:5px 12px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text2)}
-  .main-content{padding:8px;padding-top:110px} /* 預留 topbar 空間，JS 會動態調整 */
+  .main-content{padding:8px;padding-top:110px} /* JS動態調整 */
+  #mobile-vip-panel{display:block} /* 手機版VIP在main content */
   .login-box{width:92%;padding:24px 18px}
 }
 
@@ -249,6 +249,27 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 
     <!-- MAIN -->
     <div class="main-content" id="main-content">
+
+      <!-- 手機版 VIP panel（桌面版隱藏，手機版顯示） -->
+      <div id="mobile-vip-panel" style="display:none;margin-bottom:10px">
+        <details>
+          <summary class="list-tab-summary">📡 VIP 掃描清單</summary>
+          <div style="padding:6px 0">
+            <div class="vip-form">
+              <div><label>K線週期</label><select id="m-vip-period"><option value="ScanResult">日線</option><option value="ScanResult_W">週線</option></select></div>
+              <div><div class="vip-row"><label>最近天數</label><span id="m-vip-days-val">60</span></div><input type="range" id="m-vip-days" min="7" max="365" value="60" step="7"></div>
+              <div><label>方向</label><select id="m-vip-dir"><option>全部</option><option>買進</option><option>賣出</option></select></div>
+              <div><div class="vip-row"><label>最低強度</label><span id="m-vip-score-val">60</span></div><input type="range" id="m-vip-score" min="0" max="120" value="60" step="5"></div>
+              <div><div class="vip-row"><label>最低佔比%</label><span id="m-vip-pct-val">60</span></div><input type="range" id="m-vip-pct" min="0" max="100" value="60" step="5"></div>
+              <div><label>分點過濾</label><select id="m-vip-broker-sel"><option>全部分點</option></select></div>
+              <button class="vip-apply-btn" id="m-vip-apply-btn">🔍 套用篩選</button>
+            </div>
+            <div id="m-vip-caption" style="font-size:.75rem;color:var(--text2);margin:4px 0"></div>
+            <div id="m-vip-table-wrap"></div>
+            <div id="m-vip-sel-wrap" style="margin-top:6px"></div>
+          </div>
+        </details>
+      </div>
 
       <!-- TAB1: 特定分點 -->
       <div id="tab-t1">
@@ -620,11 +641,24 @@ async function initApp(){
       const sb = document.querySelector('.sidebar');
       const mc = document.querySelector('.main-content');
       if(sb && mc) mc.style.paddingTop = (sb.offsetHeight + 8) + 'px';
+      // 手機版顯示 mobile VIP panel
+      if(userRole==='vip'){
+        $('mobile-vip-panel').style.display='block';
+      }
+    } else {
+      const mc = document.querySelector('.main-content');
+      if(mc) mc.style.paddingTop='';
+      $('mobile-vip-panel').style.display='none';
     }
   }
   adjustMobilePadding();
   new ResizeObserver(adjustMobilePadding).observe(document.querySelector('.sidebar'));
   window.addEventListener('resize', adjustMobilePadding);
+
+  // 手機版 VIP panel 初始化（共用同一套 vipScanData，但有獨立的 DOM）
+  if(userRole==='vip'){
+    initMobileVipPanel();
+  }
 
   // Tab 切換
   document.querySelectorAll('.nav-btn').forEach(btn=>{
@@ -1109,16 +1143,18 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   container.innerHTML='';
   const w = container.clientWidth || window.innerWidth;
   const h = container.clientHeight || Math.max(400, window.innerHeight - 280);
+  const isMobile = window.innerWidth <= 768;
 
   const chart = LightweightCharts.createChart(container,{
     layout:{backgroundColor:'#0e1117',textColor:'#d1d4dc'},
-    watermark:{color:'rgba(255,255,255,0.06)',visible:true,text:`${sid} ${stockName}`,fontSize:60,horzAlign:'center',vertAlign:'center'},
+    watermark:{color:'rgba(255,255,255,0.06)',visible:true,text:`${sid} ${stockName}`,fontSize:isMobile?40:60,horzAlign:'center',vertAlign:'center'},
     grid:{vertLines:{visible:false},horzLines:{visible:false}},
     crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
     width:w, height:h,
   });
   currentChart=chart;
-  chart.priceScale('right').applyOptions({scaleMargins:{top:0.02,bottom:0.45}});
+  // K線佔上方45%，買賣超佔中間15%，短MACD佔15%，長MACD佔15%，底部留5%
+  chart.priceScale('right').applyOptions({scaleMargins:{top:0.02,bottom:0.52}});
 
   const kSeries=chart.addCandlestickSeries({upColor:'#ef5350',downColor:'#26a69a',borderVisible:false,wickUpColor:'#ef5350',wickDownColor:'#26a69a',priceLineVisible:false});
   kSeries.setData(plotData.map(d=>({time:d.date,open:d.open,high:d.high,low:d.low,close:d.close})));
@@ -1141,7 +1177,7 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
 
   const volS=chart.addHistogramSeries({priceScaleId:'vol',lastValueVisible:false,priceLineVisible:false});
   volS.setData(plotData.map(d=>({time:d.date,value:d.vol,color:d.vol>0?'rgba(239,83,80,0.8)':d.vol<0?'rgba(38,166,154,0.8)':'rgba(120,120,120,0.5)'})));
-  chart.priceScale('vol').applyOptions({scaleMargins:{top:0.58,bottom:0.28},visible:false});
+  chart.priceScale('vol').applyOptions({scaleMargins:{top:0.50,bottom:0.42},visible:false});
 
   const h1s=chart.addHistogramSeries({priceScaleId:'m1',lastValueVisible:false,priceLineVisible:false});
   h1s.setData(plotData.map(d=>({time:d.date,value:d.M1_hist,color:d.M1_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));
@@ -1150,7 +1186,7 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   m1s.setMarkers(macdMarkers1);
   const s1s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m1',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
   s1s.setData(plotData.map(d=>({time:d.date,value:d.M1_sig})));
-  chart.priceScale('m1').applyOptions({scaleMargins:{top:0.72,bottom:0.15},visible:false});
+  chart.priceScale('m1').applyOptions({scaleMargins:{top:0.65,bottom:0.22},visible:false});
 
   const h2s=chart.addHistogramSeries({priceScaleId:'m2',lastValueVisible:false,priceLineVisible:false});
   h2s.setData(plotData.map(d=>({time:d.date,value:d.M2_hist,color:d.M2_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));
@@ -1159,7 +1195,7 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   m2s.setMarkers(macdMarkers2);
   const s2s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m2',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
   s2s.setData(plotData.map(d=>({time:d.date,value:d.M2_sig})));
-  chart.priceScale('m2').applyOptions({scaleMargins:{top:0.85,bottom:0},visible:false});
+  chart.priceScale('m2').applyOptions({scaleMargins:{top:0.82,bottom:0.02},visible:false});
 
   const dictByTime={};
   plotData.forEach(d=>dictByTime[d.date]=d);
@@ -1436,8 +1472,128 @@ function renderVipTable(){
 }
 
 // ══════════════════════════════════════
-// AUTO LOGIN (token 已存在)
+// MOBILE VIP PANEL（手機版，在 main content 裡）
 // ══════════════════════════════════════
+function initMobileVipPanel(){
+  ['m-vip-days','m-vip-score','m-vip-pct'].forEach(id=>{
+    const input=$(id), valEl=$(id+'-val');
+    if(input&&valEl){ input.oninput=()=>valEl.textContent=input.value; }
+  });
+  $('m-vip-period').onchange = ()=>{ vipScanData=[]; $('m-vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem">週期已切換，請按「套用篩選」</div>'; };
+  $('m-vip-apply-btn').onclick = ()=> mobileApplyVipFilter();
+  $('m-vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem;padding:6px 0">請設定篩選條件後按「🔍 套用篩選」</div>';
+}
+
+async function mobileApplyVipFilter(){
+  const sheet=$('m-vip-period').value;
+  if(!vipScanData.length || vipScanData._sheet!==sheet){
+    $('m-vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入中...</div>';
+    try {
+      const raw = await apiFetch(`/api/vip/scan?sheet=${sheet}`);
+      const today=new Date();
+      raw.forEach(row=>{
+        let latest=null;
+        const lc=row['最新訊號日'];
+        if(lc){ latest=new Date(String(lc).replace(/\//g,'-')); }
+        if(!latest||isNaN(latest)){
+          const dates=(row['訊號摘要']||'').match(/\d{4}[\/\-]\d{2}[\/\-]\d{2}/g)||[];
+          dates.forEach(d=>{ const dt=new Date(d.replace(/\//g,'-')); if(!latest||dt>latest) latest=dt; });
+        }
+        row._latestDate=latest;
+        let score=0;
+        score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;
+        const scale=row['金額(萬)']?parseFloat(row['金額(萬)']||0):parseFloat(row['張數']||0)/10;
+        score+=Math.min(scale/500,1)*40;
+        if(latest&&!isNaN(latest)){const da=Math.floor((today-latest)/86400000);score+=Math.max(0,20-da*0.3);}
+        const s=row['訊號摘要']||'';
+        if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL'))) score+=10;
+        row._score=Math.round(score*10)/10;
+        const dir=row['方向']||'';
+        const hasW=s.includes('WS')||s.includes('WL'), hasM=s.includes('MS')||s.includes('ML');
+        const isBuy=dir==='買進', isSell=dir==='賣出';
+        row._match=(hasW&&isBuy)||(hasM&&isSell)?'🟢最佳':hasM&&isBuy?'🟡參考':hasW&&isSell?'🔴注意':'⚪未知';
+      });
+      vipScanData=raw; vipScanData._sheet=sheet;
+    } catch(e){
+      $('m-vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`;
+      return;
+    }
+  }
+  const days=parseInt($('m-vip-days').value)||60;
+  const dir=$('m-vip-dir').value;
+  const minScore=parseInt($('m-vip-score').value)||0;
+  const minPct=parseInt($('m-vip-pct').value)||0;
+  const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-days);
+  const selBr=$('m-vip-broker-sel').value;
+
+  let filtered=vipScanData.filter(r=>{
+    if(r._latestDate&&r._latestDate<cutoff) return false;
+    if(dir!=='全部'&&r['方向']!==dir) return false;
+    if(r._score<minScore) return false;
+    if(parseFloat(r['佔比%']||0)<minPct) return false;
+    return true;
+  }).sort((a,b)=>b._score-a._score);
+
+  // 更新分點選單
+  const brokerSel=$('m-vip-broker-sel');
+  const curBr=brokerSel.value;
+  brokerSel.innerHTML='<option>全部分點</option>';
+  const counts={};
+  filtered.forEach(r=>{const b=r['分點名稱']||'';if(b)counts[b]=(counts[b]||0)+1;});
+  Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([br,cnt])=>{
+    brokerSel.appendChild(el('option',{value:br,text:`${br}（${cnt}）`}));
+  });
+  if([...brokerSel.options].find(o=>o.value===curBr)) brokerSel.value=curBr;
+  brokerSel.onchange=()=>mobileApplyVipFilter();
+
+  if(selBr!=='全部分點') filtered=filtered.filter(r=>r['分點名稱']===selBr);
+
+  $('m-vip-caption').textContent=`近${days}天 強度≥${minScore} 共 ${filtered.length} 檔`;
+
+  const wrap=$('m-vip-table-wrap');
+  if(!filtered.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>'; return; }
+  const tbl=el('table',{class:'vip-table'});
+  const thead=el('thead');
+  thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('符合')));
+  tbl.appendChild(thead);
+  const tbody=el('tbody');
+  filtered.forEach(row=>{
+    const sid=String(row['股票代號']||'').trim();
+    const brr=String(row['分點名稱']||'').trim();
+    const key=`${sid}||${brr}`;
+    const loadCb=el('input',{type:'checkbox'});
+    loadCb.onchange=()=>{ if(loadCb.checked){ switchToT4(sid,brr); loadCb.checked=false; } };
+    const selCb=el('input',{type:'checkbox'});
+    if(vipSelected.has(key)) selCb.checked=true;
+    selCb.onchange=()=>{ if(selCb.checked) vipSelected.add(key); else vipSelected.delete(key); };
+    tbody.appendChild(tr(
+      td(loadCb), td(selCb),
+      td({text:sid}), td({text:String(row['股票名稱']||'')}),
+      td({text:brr}), td({text:row._match||''})
+    ));
+  });
+  tbl.appendChild(tbody);
+  wrap.innerHTML=''; wrap.appendChild(tbl);
+
+  const selWrap=$('m-vip-sel-wrap');
+  selWrap.innerHTML='';
+  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 勾選加入工作組'});
+  addBtn.onclick=async()=>{
+    if(!vipSelected.size){ alert('請先勾選'); return; }
+    let added=0;
+    vipSelected.forEach(key=>{
+      const [s,b]=key.split('||');
+      const dataRow=vipScanData.find(r=>String(r['股票代號']||'')==s&&String(r['分點名稱']||'')==b);
+      const sname=dataRow?String(dataRow['股票名稱']||''):'';
+      if(!workingGroup.find(w=>w['股票代號']===s&&w['追蹤分點']===b)){
+        workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b}); added++;
+      }
+    });
+    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); mobileApplyVipFilter(); alert(`✅ 已加入 ${added} 檔`); }
+    else alert('全部已在工作組中');
+  };
+  selWrap.appendChild(addBtn);
+}
 (async()=>{
   if(token && username){
     try { await initApp(); }
