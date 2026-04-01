@@ -275,8 +275,12 @@ tr:hover td{background:rgba(255,255,255,.03)}
         <button class="nav-btn" data-tab="t4">📈 K線圖</button>
       </div>
       <!-- VIP 掃描清單 -->
-      <div class="sidebar-vip" id="vip-panel" style="display:none">
-        <div class="vip-title">📡 VIP 掃描清單</div>
+      <div id="vip-panel" style="display:none">
+        <details id="vip-details">
+          <summary style="cursor:pointer;padding:8px 12px;font-size:.85rem;font-weight:600;color:var(--text2);list-style:none;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border)">
+            📡 VIP 掃描清單 <span style="font-size:.7rem;margin-left:auto">▼</span>
+          </summary>
+          <div style="padding:8px">
         <div class="vip-form" id="vip-filter-form">
           <div>
             <label>K線週期</label>
@@ -309,9 +313,11 @@ tr:hover td{background:rgba(255,255,255,.03)}
           </div>
           <button class="vip-apply-btn" id="vip-apply-btn">🔍 套用篩選</button>
         </div>
-        <div id="vip-caption" style="font-size:.75rem;color:var(--text2);margin-bottom:4px"></div>
+        <div id="vip-caption" style="font-size:.75rem;color:var(--text2);margin:4px 0"></div>
         <div id="vip-table-wrap"></div>
         <div id="vip-sel-wrap" style="margin-top:6px"></div>
+          </div>
+        </details>
       </div>
       <div class="sidebar-logout">
         <button class="btn-logout" id="logout-btn">登出</button>
@@ -988,7 +994,7 @@ async function drawChart(){
 
   try {
     const [klineRes, histRes] = await Promise.all([
-      fetchYahooKline(sid, startY),
+      apiFetch(`/api/stock/kline?sid=${sid}&start=${startY}`),
       apiFetch(`/api/stock/broker_history?sid=${sid}&br_id=${brInfo.br_id}&start=${startY}`),
     ]);
 
