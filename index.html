@@ -38,7 +38,9 @@ button{cursor:pointer}
 /* Desktop layout */
 @media(min-width:769px){
   .app-layout{display:flex;height:100vh;overflow:hidden}
-  .sidebar{width:280px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+  .sidebar{width:var(--sw,280px);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;transition:width .2s}
+  .app-layout.wide-sidebar .sidebar{--sw:420px}
+  .app-layout.wide-sidebar .sidebar-vip{display:flex;flex-direction:column}
   .sidebar-header{padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
   .sidebar-nav{padding:10px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
   .nav-btn{display:block;width:100%;padding:9px 12px;margin-bottom:3px;background:transparent;border:none;border-radius:6px;color:var(--text2);text-align:left;font-size:.9rem}
@@ -187,9 +189,12 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 
     <!-- SIDEBAR -->
     <div class="sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-user" id="sb-username">載入中...</div>
-        <div class="sidebar-role" id="sb-role"></div>
+      <div class="sidebar-header" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)">
+        <div>
+          <div class="sidebar-user" id="sb-username">載入中...</div>
+          <div class="sidebar-role" id="sb-role"></div>
+        </div>
+        <button id="layout-toggle-btn" title="切換寬版/窄版" style="background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text2);padding:4px 8px;font-size:.75rem;cursor:pointer;white-space:nowrap">⇔ 寬版</button>
       </div>
       <div class="sidebar-nav">
         <button class="nav-btn active" data-tab="t1">🚀 特定分點</button>
@@ -223,8 +228,8 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
             </select>
           </div>
           <div>
-            <div class="vip-row"><label>最低強度</label><span id="vip-score-val">60</span></div>
-            <input type="range" id="vip-score" min="0" max="120" value="60" step="5">
+            <label>最低金額(萬)</label>
+            <input type="number" id="vip-score" value="0" min="0" step="1000" style="width:100%;padding:5px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.8rem">
           </div>
           <div>
             <div class="vip-row"><label>最低佔比%</label><span id="vip-pct-val">60</span></div>
@@ -273,7 +278,7 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
               <div><label>K線週期</label><select id="m-vip-period"><option value="ScanResult">日線</option><option value="ScanResult_W">週線</option></select></div>
               <div><div class="vip-row"><label>最近天數</label><span id="m-vip-days-val">60</span></div><input type="range" id="m-vip-days" min="7" max="365" value="60" step="7"></div>
               <div><label>方向</label><select id="m-vip-dir"><option>全部</option><option>買進</option><option>賣出</option></select></div>
-              <div><div class="vip-row"><label>最低強度</label><span id="m-vip-score-val">60</span></div><input type="range" id="m-vip-score" min="0" max="120" value="60" step="5"></div>
+              <div><label>最低金額(萬)</label><input type="number" id="m-vip-score" value="0" min="0" step="1000" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem"></div>
               <div><div class="vip-row"><label>最低佔比%</label><span id="m-vip-pct-val">60</span></div><input type="range" id="m-vip-pct" min="0" max="100" value="60" step="5"></div>
               <div><label>最低張數</label><input type="number" id="m-vip-vol" value="20" min="0" step="10" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem"></div>
               <div><label>分點過濾</label><select id="m-vip-broker-sel"><option>全部分點</option></select></div>
@@ -686,6 +691,18 @@ async function initApp(){
   // 手機版 VIP panel 初始化（共用同一套 vipScanData，但有獨立的 DOM）
   if(userRole==='vip'){
     initMobileVipPanel();
+  }
+
+  // 版面切換（桌面版才顯示）
+  const layoutBtn=$('layout-toggle-btn');
+  if(window.innerWidth<=768){
+    layoutBtn.style.display='none';
+  } else {
+    layoutBtn.onclick=()=>{
+      const layout=document.querySelector('.app-layout');
+      const isWide=layout.classList.toggle('wide-sidebar');
+      layoutBtn.textContent=isWide?'⇔ 窄版':'⇔ 寬版';
+    };
   }
 
   // Tab 切換
@@ -1393,7 +1410,7 @@ $('t4-fav-btn').onclick=async()=>{
 // VIP 掃描清單
 // ══════════════════════════════════════
 function initVipPanel(){
-  ['vip-days','vip-score','vip-pct'].forEach(id=>{
+  ['vip-days','vip-pct'].forEach(id=>{
     const input=$(id), valEl=$(id+'-val');
     if(input&&valEl){ input.oninput=()=>valEl.textContent=input.value; }
   });
@@ -1455,7 +1472,7 @@ async function loadVipData(){ await loadAndFilterVip(); }
 function applyVipFilter(){
   const days=parseInt($('vip-days').value)||60;
   const dir=$('vip-dir').value;
-  const minScore=parseInt($('vip-score').value)||0;
+  const minAmt=parseFloat($('vip-score').value)||0;
   const minPct=parseInt($('vip-pct').value)||0;
   const minVol=parseInt($('vip-vol').value)||0;
   // 用字串比較日期（YYYY-MM-DD 字串可以直接比較大小）
@@ -1465,7 +1482,7 @@ function applyVipFilter(){
   vipFiltered=vipScanData.filter(r=>{
     if(r._latestDate&&r._latestDate<cutoff) return false;
     if(dir!=='全部'&&r['方向']!==dir) return false;
-    if(r._score<minScore) return false;
+    if(parseFloat(r['金額(萬)']||0)<minAmt) return false;
     if(parseFloat(r['佔比%']||0)<minPct) return false;
     if(parseFloat(r['張數']||0)<minVol) return false;
     return true;
@@ -1490,7 +1507,7 @@ function applyVipFilter(){
   if([...brokerSel.options].find(o=>o.value===curBr)) brokerSel.value=curBr;
   brokerSel.onchange=renderVipTable;
 
-  $('vip-caption').textContent=`近${days}天 強度≥${minScore} 共 ${vipFiltered.length} 檔`;
+  $('vip-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${vipFiltered.length} 檔`;
   renderVipTable();
 }
 
@@ -1574,7 +1591,7 @@ function renderVipTable(){
 // MOBILE VIP PANEL（手機版，在 main content 裡）
 // ══════════════════════════════════════
 function initMobileVipPanel(){
-  ['m-vip-days','m-vip-score','m-vip-pct'].forEach(id=>{
+  ['m-vip-days','m-vip-pct'].forEach(id=>{
     const input=$(id), valEl=$(id+'-val');
     if(input&&valEl){ input.oninput=()=>valEl.textContent=input.value; }
   });
@@ -1628,7 +1645,7 @@ async function mobileApplyVipFilter(){
   }
   const days=parseInt($('m-vip-days').value)||60;
   const dir=$('m-vip-dir').value;
-  const minScore=parseInt($('m-vip-score').value)||0;
+  const minAmt=parseFloat($('m-vip-score').value)||0;
   const minPct=parseInt($('m-vip-pct').value)||0;
   const minVol=parseInt($('m-vip-vol').value)||0;
   const cutoffDate=new Date(); cutoffDate.setDate(cutoffDate.getDate()-days);
@@ -1638,7 +1655,7 @@ async function mobileApplyVipFilter(){
   let filtered=vipScanData.filter(r=>{
     if(r._latestDate&&r._latestDate<cutoff) return false;
     if(dir!=='全部'&&r['方向']!==dir) return false;
-    if(r._score<minScore) return false;
+    if(parseFloat(r['金額(萬)']||0)<minAmt) return false;
     if(parseFloat(r['佔比%']||0)<minPct) return false;
     if(parseFloat(r['張數']||0)<minVol) return false;
     return true;
@@ -1665,7 +1682,7 @@ async function mobileApplyVipFilter(){
 
   if(selBr!=='全部分點') filtered=filtered.filter(r=>r['分點名稱']===selBr);
 
-  $('m-vip-caption').textContent=`近${days}天 強度≥${minScore} 共 ${filtered.length} 檔`;
+  $('m-vip-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${filtered.length} 檔`;
 
   const wrap=$('m-vip-table-wrap');
   if(!filtered.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>'; return; }
