@@ -37,20 +37,22 @@ button{cursor:pointer}
 
 /* Desktop layout */
 @media(min-width:769px){
-  .app-layout{display:flex;height:100vh;overflow:hidden}
-  .sidebar{width:var(--sw,280px);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;transition:width .2s}
+  html,body{height:100%;overflow:hidden}
+  #app{height:100%}
+  .app-layout{display:flex;flex-direction:row;height:100%;overflow:hidden}
+  .sidebar{width:var(--sw,280px);min-width:var(--sw,280px);height:100%;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;transition:width .2s,min-width .2s}
   .app-layout.wide-sidebar .sidebar{--sw:420px}
-  .app-layout.wide-sidebar .sidebar-vip{display:flex;flex-direction:column}
-  .sidebar-header{padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
-  .sidebar-nav{padding:10px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
+  .sidebar-header{padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+  .sidebar-nav{padding:8px;border-bottom:1px solid var(--border);flex-shrink:0}
   .nav-btn{display:block;width:100%;padding:9px 12px;margin-bottom:3px;background:transparent;border:none;border-radius:6px;color:var(--text2);text-align:left;font-size:.9rem}
   .nav-btn:hover{background:var(--bg3);color:var(--text)}
   .nav-btn.active{background:var(--accent);color:#fff}
-  .sidebar-vip{flex:1;overflow-y:auto;padding:6px}
+  .sidebar-vip{flex:1;min-height:0;overflow-y:auto;padding:6px}
   .sidebar-logout{padding:10px;border-top:1px solid var(--border);flex-shrink:0}
   .btn-logout{width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:.85rem}
   .btn-logout:hover{border-color:var(--red);color:var(--red)}
-  .main-content{flex:1;overflow-y:auto;padding:20px 24px}
+  .main-content{flex:1;min-width:0;min-height:0;height:100%;overflow-y:auto;padding:20px 24px}
+  #mobile-vip-panel{display:none!important}
 }
 
 /* Mobile layout - fixed topbar + scrollable body */
@@ -621,6 +623,7 @@ $('logout-btn').onclick = doLogout;
 // ══════════════════════════════════════
 async function initApp(){
   $('login-screen').style.display='none';
+  // 桌面版用 block（讓 CSS flex 生效），手機版也是 block
   $('app').style.display='block';
   $('sb-username').textContent = username;
   $('sb-role').textContent = userRole==='vip'?'⭐ VIP 會員':userRole==='admin'?'🔧 管理員':'👤 會員';
