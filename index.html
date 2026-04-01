@@ -704,7 +704,11 @@ async function initApp(){
   // VIP overlay 關閉按鈕
   const overlayCloseBtn=$('vip-overlay-close');
   if(overlayCloseBtn){
-    overlayCloseBtn.onclick=()=>$('vip-overlay').classList.remove('open');
+    overlayCloseBtn.onclick=()=>{
+      const o=$('vip-overlay');
+      o.classList.remove('open');
+      o.style.display='';
+    };
   }
 
   // Tab 切換
@@ -1514,6 +1518,7 @@ function applyVipFilter(){
   if(window.innerWidth > 768){
     const overlay=$('vip-overlay');
     overlay.classList.add('open');
+    overlay.style.display='flex'; // 強制顯示，防止 class 失效
     $('vip-overlay-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${vipFiltered.length} 檔`;
   }
   renderVipTable();
