@@ -1277,19 +1277,21 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
     `;
   }
 
-  // 預設顯示最後一根K線
-  updateLegend(plotData[plotData.length-1]);
+  // 預設隱藏，等用戶點選才顯示
+
+  // 預設隱藏 legend
+  legend.style.display='none';
 
   chart.subscribeCrosshairMove(param=>{
     if(!param.time||param.point===undefined||param.point.x<0||param.point.y<0){
-      // 不重置，保留最後顯示的資料
+      legend.style.display='none';
       return;
     }
     let timeStr = param.time;
     if(typeof timeStr==='object'&&timeStr.year)
       timeStr = timeStr.year+'-'+String(timeStr.month).padStart(2,'0')+'-'+String(timeStr.day).padStart(2,'0');
     const d = dictByTime[timeStr] || dictByTime[param.time];
-    if(d) updateLegend(d);
+    if(d){ legend.style.display='block'; updateLegend(d); }
   });
 
   // 手機 touch 支援：直接監聽 touchmove 找最近K棒
@@ -1301,8 +1303,13 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
     const logical = chart.timeScale().coordinateToLogical(x);
     if(logical === null) return;
     const idx = Math.max(0, Math.min(Math.round(logical), plotData.length-1));
-    if(plotData[idx]) updateLegend(plotData[idx]);
+    if(plotData[idx]){ legend.style.display='block'; updateLegend(plotData[idx]); }
   }, {passive:false});
+
+  container.addEventListener('touchend', ()=>{
+    // 觸碰結束後 1.5 秒自動隱藏
+    setTimeout(()=>{ legend.style.display='none'; }, 1500);
+  });
 
   new ResizeObserver(()=>{
     if(currentChart){
