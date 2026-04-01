@@ -461,8 +461,6 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%">
             <!-- 股票代號 + 快捷按鈕 -->
             <input type="text" id="t4-sid" value="6488" style="width:72px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
-            <button onclick="$('t4-sid').value='^TWII'" style="padding:4px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2);font-size:.75rem;cursor:pointer" title="台股加權指數">大盤</button>
-            <button onclick="$('t4-sid').value='TXF=F'" style="padding:4px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2);font-size:.75rem;cursor:pointer" title="台指期近月">台指期</button>
             <!-- 分點（可選，指數/期貨不需要） -->
             <input type="text" id="t4-br" list="t4-br-list" placeholder="分點(可空白)" style="flex:1;min-width:100px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
             <datalist id="t4-br-list"></datalist>
@@ -1046,7 +1044,7 @@ async function drawChart(){
     const histRes = needBroker ? results[1] : null;
 
     const kdata = klineRes.data || [];
-    const stockName = klineRes.stock_name || histRes?.stock_name || '';
+    const stockName = (histRes?.stock_name) || klineRes.stock_name || '';
     const volMap = {};
     if(histRes) (histRes.records||[]).forEach(r=>{ volMap[r.Date]=r['買賣超']; });
     const is60m = (periodVal === '60m');
