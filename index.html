@@ -631,7 +631,7 @@ async function initApp(){
 
   // VIP
   if(userRole==='vip'){
-    $('vip-panel').style.display='block';
+    if(window.innerWidth > 768) $('vip-panel').style.display='block';
     initVipPanel();
   }
 
@@ -1376,20 +1376,27 @@ async function loadAndFilterVip(){
     try {
       const raw = await apiFetch(`/api/vip/scan?sheet=${sheet}`);
       const today=new Date();
+      const todayMs=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());
       raw.forEach(row=>{
-        let latest=null;
+        let latestStr=null;
         const latestCol=row['最新訊號日'];
-        if(latestCol){ latest=new Date(String(latestCol).replace(/\//g,'-')); }
-        if(!latest||isNaN(latest)){
+        if(latestCol){ latestStr=String(latestCol).replace(/\//g,'-').slice(0,10); }
+        if(!latestStr){
           const dates=(row['訊號摘要']||'').match(/\d{4}[\/\-]\d{2}[\/\-]\d{2}/g)||[];
-          dates.forEach(d=>{ const dt=new Date(d.replace(/\//g,'-')); if(!latest||dt>latest) latest=dt; });
+          dates.forEach(d=>{ const ds=d.replace(/\//g,'-'); if(!latestStr||ds>latestStr) latestStr=ds; });
         }
-        row._latestDate=latest;
+        row._latestDate=latestStr;
         let score=0;
         score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;
-        const scale=row['金額(萬)']?parseFloat(row['金額(萬)']||0):parseFloat(row['張數']||0)/10;
+        const amt=parseFloat(row['金額(萬)']||0);
+        const vol=parseFloat(row['張數']||0);
+        const scale=(amt>0)?amt:(vol/10);
         score+=Math.min(scale/500,1)*40;
-        if(latest&&!isNaN(latest)){ const da=Math.floor((today-latest)/86400000); score+=Math.max(0,20-da*0.3); }
+        if(latestStr){
+          const [y,mo,dd]=latestStr.split('-').map(Number);
+          const daysAgo=Math.floor((todayMs-Date.UTC(y,mo-1,dd))/86400000);
+          score+=Math.max(0,20-daysAgo*0.3);
+        }
         const s=row['訊號摘要']||'';
         if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL'))) score+=10;
         row._score=Math.round(score*10)/10;
@@ -1415,7 +1422,9 @@ function applyVipFilter(){
   const dir=$('vip-dir').value;
   const minScore=parseInt($('vip-score').value)||0;
   const minPct=parseInt($('vip-pct').value)||0;
-  const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-days);
+  // 用字串比較日期（YYYY-MM-DD 字串可以直接比較大小）
+  const cutoffDate=new Date(); cutoffDate.setDate(cutoffDate.getDate()-days);
+  const cutoff=cutoffDate.toISOString().slice(0,10);
 
   vipFiltered=vipScanData.filter(r=>{
     if(r._latestDate&&r._latestDate<cutoff) return false;
@@ -1541,7 +1550,8 @@ async function mobileApplyVipFilter(){
   const dir=$('m-vip-dir').value;
   const minScore=parseInt($('m-vip-score').value)||0;
   const minPct=parseInt($('m-vip-pct').value)||0;
-  const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-days);
+  const cutoffDate=new Date(); cutoffDate.setDate(cutoffDate.getDate()-days);
+  const cutoff=cutoffDate.toISOString().slice(0,10);
   const selBr=$('m-vip-broker-sel').value;
 
   let filtered=vipScanData.filter(r=>{
