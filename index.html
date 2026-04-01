@@ -532,8 +532,10 @@ let currentTab = 't1';
 // UTILS
 // ══════════════════════════════════════
 const $ = id => document.getElementById(id);
-const el = (tag, attr={}, ...children) => {
+// el(tag, [attr], ...children) — attr 是可選的普通物件
+const el = (tag, ...args) => {
   const e = document.createElement(tag);
+  const attr = (args[0] && typeof args[0]==='object' && !(args[0] instanceof Node)) ? args.shift() : {};
   Object.entries(attr).forEach(([k,v])=>{
     if(k==='class') e.className=v;
     else if(k==='html') e.innerHTML=v;
@@ -541,9 +543,17 @@ const el = (tag, attr={}, ...children) => {
     else if(k.startsWith('on')) e.addEventListener(k.slice(2),v);
     else e.setAttribute(k,v);
   });
-  children.forEach(c=>c&&e.appendChild(typeof c==='string'?document.createTextNode(c):c));
+  args.forEach(c=>{
+    if(c==null) return;
+    if(typeof c==='string') e.appendChild(document.createTextNode(c));
+    else if(c instanceof Node) e.appendChild(c);
+  });
   return e;
 };
+// 常用快捷
+const td = (...args) => el('td', ...args);
+const th = (text) => el('th', {text});
+const tr = (...tds) => { const r=el('tr'); tds.forEach(t=>r.appendChild(t)); return r; };
 
 function showStatus(id, msg, type='info'){
   const d = $(id);
@@ -1252,30 +1262,25 @@ function updateCounts(){
 function renderWatchlist(){
   updateCounts();
   const wrap=$('wl-table-wrap');
-  if(!watchlist.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.85rem;padding:8px 0">最愛清單為空，可在繪圖頁用 ❤️ 存入按鈕加入。</div>'; return; }
+  if(!watchlist.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.85rem;padding:8px 0">最愛清單為空</div>'; return; }
   const tbl=el('table',{class:'wl-table'});
-  const thead=el('thead'); const hr=el('tr');
-  ['載入繪圖','代號','名稱','追蹤分點','筆記','刪除'].forEach(t=>hr.appendChild(el('th',{text:t})));
-  thead.appendChild(hr); tbl.appendChild(thead);
+  const thead=el('thead');
+  thead.appendChild(tr(th('載入繪圖'),th('代號'),th('名稱'),th('追蹤分點'),th('筆記'),th('刪除')));
+  tbl.appendChild(thead);
   const tbody=el('tbody');
   watchlist.forEach((item,i)=>{
-    const tr=el('tr');
-    const loadCb=el('input',{type:'checkbox',title:'載入繪圖'});
+    const loadCb=el('input',{type:'checkbox'});
     loadCb.onchange=()=>{ if(loadCb.checked){ switchToT4(item['股票代號'],item['追蹤分點']); loadCb.checked=false; } };
-    tr.appendChild(el('td',loadCb));
-    tr.appendChild(el('td',{text:item['股票代號']}));
-    tr.appendChild(el('td',{text:item['股票名稱']||''}));
-    tr.appendChild(el('td',{text:item['追蹤分點']}));
-    const noteTd=el('td');
-    const noteInput=el('input',{class:'note-input',type:'text',value:item['筆記']||'',placeholder:'點擊編輯...'});
+    const noteInput=el('input',{class:'note-input',type:'text',placeholder:'點擊編輯...'});
+    noteInput.value=item['筆記']||'';
     noteInput.onblur=async()=>{ watchlist[i]['筆記']=noteInput.value; await saveWatchlist(); };
-    noteTd.appendChild(noteInput); tr.appendChild(noteTd);
-    const delCb=el('input',{type:'checkbox',title:'刪除'});
+    const delCb=el('input',{type:'checkbox'});
     delCb.onchange=async()=>{ if(delCb.checked){ watchlist.splice(i,1); await saveWatchlist(); renderWatchlist(); } };
-    tr.appendChild(el('td',delCb));
-    tbody.appendChild(tr);
+    const noteTd=el('td'); noteTd.appendChild(noteInput);
+    tbody.appendChild(tr(td(loadCb),td({text:item['股票代號']}),td({text:item['股票名稱']||''}),td({text:item['追蹤分點']}),noteTd,td(delCb)));
   });
-  tbl.appendChild(tbody); wrap.innerHTML=''; wrap.appendChild(tbl);
+  tbl.appendChild(tbody);
+  wrap.innerHTML=''; wrap.appendChild(tbl);
 }
 
 function renderWorkingGroup(){
@@ -1283,31 +1288,24 @@ function renderWorkingGroup(){
   const wrap=$('wg-table-wrap');
   if(!workingGroup.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.85rem;padding:8px 0">工作組為空。</div>'; return; }
   const tbl=el('table',{class:'wl-table'});
-  const thead=el('thead'); const hr=el('tr');
-  ['載入繪圖','⭐存愛','代號','名稱','追蹤分點','移除'].forEach(t=>hr.appendChild(el('th',{text:t})));
-  thead.appendChild(hr); tbl.appendChild(thead);
+  const thead=el('thead');
+  thead.appendChild(tr(th('載入繪圖'),th('⭐存愛'),th('代號'),th('名稱'),th('追蹤分點'),th('移除')));
+  tbl.appendChild(thead);
   const tbody=el('tbody');
   const saveCbs=[];
   workingGroup.forEach((item,i)=>{
-    const tr=el('tr');
     const loadCb=el('input',{type:'checkbox'});
     loadCb.onchange=()=>{ if(loadCb.checked){ switchToT4(item['股票代號'],item['追蹤分點']); loadCb.checked=false; } };
     const saveCb=el('input',{type:'checkbox'});
     saveCbs.push(saveCb);
-    tr.appendChild(el('td',loadCb));
-    tr.appendChild(el('td',saveCb));
-    tr.appendChild(el('td',{text:item['股票代號']}));
-    tr.appendChild(el('td',{text:item['股票名稱']||''}));
-    tr.appendChild(el('td',{text:item['追蹤分點']}));
     const delCb=el('input',{type:'checkbox'});
     delCb.onchange=async()=>{ if(delCb.checked){ workingGroup.splice(i,1); await saveWorkingGroup(); renderWorkingGroup(); } };
-    tr.appendChild(el('td',delCb));
-    tbody.appendChild(tr);
+    tbody.appendChild(tr(td(loadCb),td(saveCb),td({text:item['股票代號']}),td({text:item['股票名稱']||''}),td({text:item['追蹤分點']}),td(delCb)));
   });
   tbl.appendChild(tbody); wrap.innerHTML=''; wrap.appendChild(tbl);
   $('wg-fav-btn').onclick=async()=>{
     const toAdd=workingGroup.filter((_,i)=>saveCbs[i]?.checked);
-    if(!toAdd.length){ alert('請先勾選 ⭐ 存愛 欄位的項目'); return; }
+    if(!toAdd.length){ alert('請先勾選 ⭐ 存愛 欄位'); return; }
     let added=0;
     toAdd.forEach(item=>{
       if(!watchlist.find(w=>w['股票代號']===item['股票代號']&&w['追蹤分點']===item['追蹤分點'])){
@@ -1426,30 +1424,28 @@ function applyVipFilter(){
 function renderVipTable(){
   const selBr=$('vip-broker-sel').value;
   let rows=vipFiltered;
+  if(selBr!=='全部分點') rows=rows.filter(r=>r['分點名稱']===selBr);
   const wrap=$('vip-table-wrap');
   if(!rows.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>'; return; }
   const tbl=el('table',{class:'vip-table'});
-  const thead=el('thead'); const hr=el('tr');
-  ['📊','🗂️','代號','名稱','分點','符合','強度'].forEach(t=>hr.appendChild(el('th',{text:t})));
-  thead.appendChild(hr); tbl.appendChild(thead);
+  const thead=el('thead');
+  thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('符合'),th('強度')));
+  tbl.appendChild(thead);
   const tbody=el('tbody');
   rows.forEach(row=>{
     const sid=String(row['股票代號']||'').trim();
     const br=String(row['分點名稱']||'').trim();
     const key=`${sid}||${br}`;
-    const tr=el('tr');
     const loadCb=el('input',{type:'checkbox',title:'載入K線'});
     loadCb.onchange=()=>{ if(loadCb.checked){ switchToT4(sid,br); loadCb.checked=false; } };
-    tr.appendChild(el('td',loadCb));
-    const selCb=el('input',{type:'checkbox',checked:vipSelected.has(key)});
+    const selCb=el('input',{type:'checkbox'});
+    if(vipSelected.has(key)) selCb.checked=true;
     selCb.onchange=()=>{ if(selCb.checked) vipSelected.add(key); else vipSelected.delete(key); };
-    tr.appendChild(el('td',selCb));
-    tr.appendChild(el('td',{text:sid}));
-    tr.appendChild(el('td',{text:String(row['股票名稱']||'')}));
-    tr.appendChild(el('td',{text:br}));
-    tr.appendChild(el('td',{text:row._match||''}));
-    tr.appendChild(el('td',{text:row._score}));
-    tbody.appendChild(tr);
+    tbody.appendChild(tr(
+      td(loadCb), td(selCb),
+      td({text:sid}), td({text:String(row['股票名稱']||'')}),
+      td({text:br}), td({text:row._match||''}), td({text:String(row._score)})
+    ));
   });
   tbl.appendChild(tbody);
   wrap.innerHTML=''; wrap.appendChild(tbl);
@@ -1457,7 +1453,7 @@ function renderVipTable(){
   selWrap.innerHTML='';
   const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 勾選加入工作組'});
   addBtn.onclick=async()=>{
-    if(!vipSelected.size){ alert('請先勾選 🗂️ 欄位的股票'); return; }
+    if(!vipSelected.size){ alert('請先勾選 🗂️ 欄位'); return; }
     let added=0;
     vipSelected.forEach(key=>{
       const [s,b]=key.split('||');
@@ -1467,7 +1463,7 @@ function renderVipTable(){
         workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b}); added++;
       }
     });
-    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); renderVipTable(); alert(`✅ 已加入 ${added} 檔到工作組`); }
+    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); renderVipTable(); alert(`✅ 已加入 ${added} 檔`); }
     else alert('全部已在工作組中');
   };
   selWrap.appendChild(addBtn);
