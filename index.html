@@ -1221,27 +1221,28 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   updateLegend(plotData[plotData.length-1]);
 
   chart.subscribeCrosshairMove(param=>{
-    if(!param.time) return;
-    let timeKey = param.time;
-    if(typeof timeKey === 'object'){
-      // {year, month, day} format
-      if(timeKey.year !== undefined){
-        timeKey = `${timeKey.year}-${String(timeKey.month).padStart(2,'0')}-${String(timeKey.day).padStart(2,'0')}`;
-      }
-    } else if(typeof timeKey === 'number'){
-      timeKey = new Date(timeKey*1000).toISOString().split('T')[0];
-    } else {
-      timeKey = String(timeKey);
+    if(!param.time||param.point===undefined||param.point.x<0||param.point.y<0){
+      // 不重置，保留最後顯示的資料
+      return;
     }
-    const d = dictByTime[timeKey];
-    if(d){ updateLegend(d); return; }
-    // fallback: 找最近的日期
-    const keys = Object.keys(dictByTime).sort();
-    const closest = keys.reduce((prev,curr)=>
-      Math.abs(curr.localeCompare(timeKey)) < Math.abs(prev.localeCompare(timeKey)) ? curr : prev
-    , keys[0]);
-    if(closest && dictByTime[closest]) updateLegend(dictByTime[closest]);
+    let timeStr = param.time;
+    if(typeof timeStr==='object'&&timeStr.year)
+      timeStr = timeStr.year+'-'+String(timeStr.month).padStart(2,'0')+'-'+String(timeStr.day).padStart(2,'0');
+    const d = dictByTime[timeStr] || dictByTime[param.time];
+    if(d) updateLegend(d);
   });
+
+  // 手機 touch 支援：直接監聽 touchmove 找最近K棒
+  container.addEventListener('touchmove', e=>{
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = container.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const logical = chart.timeScale().coordinateToLogical(x);
+    if(logical === null) return;
+    const idx = Math.max(0, Math.min(Math.round(logical), plotData.length-1));
+    if(plotData[idx]) updateLegend(plotData[idx]);
+  }, {passive:false});
 
   new ResizeObserver(()=>{
     if(currentChart){
