@@ -47,11 +47,11 @@ button{cursor:pointer}
 .btn-primary:hover{background:#1a45cc}
 .login-error{color:var(--red);font-size:.85rem;text-align:center;margin-top:10px;min-height:20px}
 
-/* ── App Layout ── */
-#app{display:none;height:100vh;overflow:hidden}
+/* ── App Layout (base, overridden by media queries) ── */
+#app{display:none}
 .app-layout{display:flex;height:100vh}
 
-/* ── Sidebar ── */
+/* ── Sidebar (desktop default) ── */
 .sidebar{
   width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);
   display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;
@@ -214,34 +214,60 @@ tr:hover td{background:rgba(255,255,255,.03)}
   cursor:pointer;padding:8px 12px;font-size:.9rem;font-weight:600;
   background:var(--bg2);border:1px solid var(--border);border-radius:6px;
   color:var(--text);list-style:none;display:flex;align-items:center;gap:6px;
-  user-select:none;
+  user-select:none;margin-bottom:4px;
 }
 .list-tab-summary::-webkit-details-marker{display:none}
 details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 
-/* ── Responsive / Mobile ── */
-@media(max-width:768px){
-  :root{--sidebar:100%}
-  body{overflow-y:auto}
-  .app-layout{flex-direction:column;height:auto;min-height:100vh}
+/* ── Desktop Layout ── */
+@media(min-width:769px){
+  #app{display:none;height:100vh;overflow:hidden}
+  .app-layout{display:flex;height:100vh}
   .sidebar{
-    width:100%;height:auto;flex-direction:column;
-    border-right:none;border-bottom:1px solid var(--border);
-    overflow:visible;flex-shrink:0;
+    width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);
+    display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;
   }
-  .sidebar-nav{display:flex;flex-wrap:wrap;gap:4px;padding:8px}
-  .nav-btn{flex:1;min-width:70px;text-align:center;padding:7px 4px;font-size:.8rem}
-  .sidebar-logout{padding:8px}
-  .main-content{flex:1;overflow-y:visible;padding:10px}
+  .sidebar-vip{flex:1;overflow-y:auto;padding:8px}
+  .main-content{flex:1;overflow-y:auto;padding:20px 24px}
+  #mobile-nav{display:none}
+}
+
+/* ── Mobile Layout ── */
+@media(max-width:768px){
+  #app{display:none}
+  .app-layout{display:block}
+  /* sidebar 在手機上變成固定頂部 navbar */
+  .sidebar{
+    position:fixed;top:0;left:0;right:0;z-index:100;
+    background:var(--bg2);border-bottom:1px solid var(--border);
+  }
+  .sidebar-header{padding:8px 12px 4px;display:flex;align-items:center;gap:8px}
+  .sidebar-user{font-size:.85rem}
+  .sidebar-role{font-size:.7rem}
+  .sidebar-nav{display:flex;gap:2px;padding:4px 8px;overflow-x:auto}
+  .nav-btn{flex:0 0 auto;padding:6px 10px;font-size:.78rem;white-space:nowrap}
+  .sidebar-vip{padding:0}
+  .sidebar-logout{padding:6px 8px}
+  .btn-logout{padding:6px 12px;font-size:.8rem}
+  /* main content 從 sidebar 高度下方開始 */
+  .main-content{
+    padding:10px;
+    padding-top:0; /* JS 動態設定 */
+    overflow-y:visible;
+  }
+  /* chart */
+  #chart-wrapper{height:55vh;min-height:300px}
+  .chart-legend{font-size:.7rem;max-width:160px;padding:6px 8px}
+  .chart-controls{flex-direction:column;gap:6px}
+  /* controls */
   .ctrl-row{flex-direction:column;gap:8px}
   .ctrl-group{width:100%}
   .ctrl-group select,.ctrl-group input[type=text],.ctrl-group input[type=date]{width:100%;min-width:unset}
   .radio-group{flex-wrap:wrap}
-  #chart-wrapper{height:55vh;min-height:300px}
-  .chart-legend{font-size:.7rem;max-width:160px;padding:6px 8px}
-  .chart-controls{flex-direction:column;gap:6px}
+  /* table */
   table{font-size:.75rem}
   th,td{padding:4px 6px}
+  /* misc */
   .login-box{width:92%;padding:24px 20px}
   .section-title{font-size:1rem}
   .btn-search,.btn-secondary{padding:9px 14px}
@@ -700,6 +726,18 @@ async function initApp(){
     $('vip-panel').style.display='block';
     initVipPanel();
   }
+
+  // 手機版：動態設定 main-content 的 padding-top = sidebar 高度
+  function adjustMobilePadding(){
+    if(window.innerWidth <= 768){
+      const sb = document.querySelector('.sidebar');
+      const mc = document.querySelector('.main-content');
+      if(sb && mc) mc.style.paddingTop = (sb.offsetHeight + 8) + 'px';
+    }
+  }
+  adjustMobilePadding();
+  new ResizeObserver(adjustMobilePadding).observe(document.querySelector('.sidebar'));
+  window.addEventListener('resize', adjustMobilePadding);
 
   // Tab 切換
   document.querySelectorAll('.nav-btn').forEach(btn=>{
