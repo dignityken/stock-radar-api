@@ -456,13 +456,19 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 
       <!-- TAB4: K線圖 -->
       <div id="tab-t4" style="display:none">
-        <!-- 控制列：手機版緊湊單行 -->
+        <!-- 控制列 -->
         <div class="chart-controls">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%">
+            <!-- 股票代號 + 快捷按鈕 -->
             <input type="text" id="t4-sid" value="6488" style="width:72px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
-            <input type="text" id="t4-br" list="t4-br-list" placeholder="輸入分點..." style="flex:1;min-width:120px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
+            <button onclick="$('t4-sid').value='^TWII'" style="padding:4px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2);font-size:.75rem;cursor:pointer" title="台股加權指數">大盤</button>
+            <button onclick="$('t4-sid').value='TXF=F'" style="padding:4px 7px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2);font-size:.75rem;cursor:pointer" title="台指期近月">台指期</button>
+            <!-- 分點（可選，指數/期貨不需要） -->
+            <input type="text" id="t4-br" list="t4-br-list" placeholder="分點(可空白)" style="flex:1;min-width:100px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
             <datalist id="t4-br-list"></datalist>
+            <!-- 週期：新增60分鐘 -->
             <div class="radio-group" style="gap:3px">
+              <input type="radio" name="t4-period" id="t4-60" value="60m"><label for="t4-60" style="padding:5px 9px;font-size:.8rem">60分</label>
               <input type="radio" name="t4-period" id="t4-d" value="D" checked><label for="t4-d" style="padding:5px 9px;font-size:.8rem">日</label>
               <input type="radio" name="t4-period" id="t4-w" value="W"><label for="t4-w" style="padding:5px 9px;font-size:.8rem">週</label>
               <input type="radio" name="t4-period" id="t4-m" value="M"><label for="t4-m" style="padding:5px 9px;font-size:.8rem">月</label>
@@ -966,7 +972,7 @@ $('t3-search-btn').onclick = async ()=>{
 // ══════════════════════════════════════
 function switchToT4(sid, brName){
   $('t4-sid').value = sid;
-  $('t4-br').value = brName;
+  $('t4-br').value = brName || '';
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector('.nav-btn[data-tab=t4]').classList.add('active');
   ['t1','t2','t3','t4'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');
@@ -1013,36 +1019,47 @@ async function fetchYahooKline(sid, startY) {
 
 async function drawChart(){
   const sid    = $('t4-sid').value.trim().toUpperCase();
-  const brName = $('t4-br').value;
-  const brInfo = brokerMap[brName];
-  const period = document.querySelector('input[name=t4-period]:checked').value;
+  const brName = $('t4-br').value.trim();
+  const brInfo = brName ? brokerMap[brName] : null;
+  const periodVal = document.querySelector('input[name=t4-period]:checked').value;
   const days   = parseInt($('t4-days').value)||300;
   const startY = $('t4-start').value;
 
-  if(!brInfo){ showStatus('t4-status','找不到分點','error'); return; }
+  // 決定傳給後端的 interval
+  const intervalMap = {'60m':'60m','D':'1d','W':'1wk','M':'1mo'};
+  const apiInterval = intervalMap[periodVal] || '1d';
+
+  // 空分點 → 只畫K線，不查券商買賣超
+  const needBroker = brName && brInfo;
+  if(brName && !brInfo){ showStatus('t4-status','找不到分點資料','error'); return; }
+
   showStatus('t4-status',`<div class="loading"><div class="spinner"></div>載入 ${sid} 資料中...</div>`);
   $('chart-wrapper').style.display='none';
 
   try {
-    const [klineRes, histRes] = await Promise.all([
-      apiFetch(`/api/stock/kline?sid=${sid}&start=${startY}`),
-      apiFetch(`/api/stock/broker_history?sid=${sid}&br_id=${brInfo.br_id}&start=${startY}`),
-    ]);
+    const promises = [apiFetch(`/api/stock/kline?sid=${sid}&start=${startY}&interval=${apiInterval}`)];
+    if(needBroker){
+      promises.push(apiFetch(`/api/stock/broker_history?sid=${sid}&br_id=${brInfo.br_id}&start=${startY}`));
+    }
+    const results = await Promise.all(promises);
+    const klineRes = results[0];
+    const histRes = needBroker ? results[1] : null;
 
     const kdata = klineRes.data || [];
-    const stockName = histRes.stock_name || '';
+    const stockName = klineRes.stock_name || histRes?.stock_name || '';
     const volMap = {};
-    (histRes.records||[]).forEach(r=>{ volMap[r.Date]=r['買賣超']; });
+    if(histRes) (histRes.records||[]).forEach(r=>{ volMap[r.Date]=r['買賣超']; });
 
-    // 合併並 resample
+    // 合併並 resample（60m 不 resample）
     let merged = kdata.map(d=>({
       date: d.Date,
       open: d.Open, high: d.High, low: d.Low, close: d.Close,
       vol: volMap[d.Date]||0,
     }));
 
-    if(period==='W') merged = resampleWeekly(merged);
-    else if(period==='M') merged = resampleMonthly(merged);
+    // 60m 不做 resample；日/週/月線做原有邏輯
+    if(periodVal==='W') merged = resampleWeekly(merged);
+    else if(periodVal==='M') merged = resampleMonthly(merged);
 
     // BB (52)
     merged = calcBB(merged, 52, 2);
@@ -1063,7 +1080,7 @@ async function drawChart(){
     const finalMM2 = mm2.filter(m=>plotDates.has(m.time)).sort((a,b)=>a.time>b.time?1:-1);
 
     showStatus('t4-status','');
-    renderChart(plotData, finalPM, finalMM1, finalMM2, sid, stockName, brName);
+    renderChart(plotData, finalPM, finalMM1, finalMM2, sid, stockName, brName||'無分點');
   } catch(e){
     showStatus('t4-status', e.message, 'error');
   }
