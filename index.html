@@ -398,8 +398,10 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
             <select id="t3-loc" style="min-width:120px"></select>
           </div>
           <div class="ctrl-group">
-            <label>特定分點</label>
-            <select id="t3-br" style="min-width:180px"></select>
+            <label>特定分點（可輸入搜尋）</label>
+            <input type="text" id="t3-br-input" list="t3-br-list" placeholder="輸入分點名稱..." style="min-width:180px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.88rem">
+            <datalist id="t3-br-list"></datalist>
+            <input type="hidden" id="t3-br">
           </div>
           <div class="ctrl-group">
             <label>起始</label>
@@ -446,7 +448,8 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
         <div class="chart-controls">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%">
             <input type="text" id="t4-sid" value="6488" style="width:72px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
-            <select id="t4-br" style="flex:1;min-width:120px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem"></select>
+            <input type="text" id="t4-br" list="t4-br-list" placeholder="輸入分點..." style="flex:1;min-width:120px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
+            <datalist id="t4-br-list"></datalist>
             <div class="radio-group" style="gap:3px">
               <input type="radio" name="t4-period" id="t4-d" value="D" checked><label for="t4-d" style="padding:5px 9px;font-size:.8rem">日</label>
               <input type="radio" name="t4-period" id="t4-w" value="W"><label for="t4-w" style="padding:5px 9px;font-size:.8rem">週</label>
@@ -732,19 +735,25 @@ function buildT3Selects(){
     locSel.appendChild(el('option',{value:loc,text:loc}));
   });
   locSel.onchange = ()=>{
-    const br = $('t3-br');
-    br.innerHTML='';
-    (geoMap[locSel.value]||[]).sort().forEach(b=>br.appendChild(el('option',{value:b,text:b})));
+    const list = $('t3-br-list');
+    list.innerHTML='';
+    const branches = geoMap[locSel.value]||[];
+    [...branches].sort().forEach(b=>{
+      const opt=document.createElement('option'); opt.value=b; list.appendChild(opt);
+    });
+    if(branches.length>0) $('t3-br-input').value=[...branches].sort()[0];
   };
   locSel.dispatchEvent(new Event('change'));
 }
 
 function buildT4BrSelect(){
-  const sel = $('t4-br');
-  sel.innerHTML='';
-  Object.keys(brokerMap).sort().forEach(br=>{
-    sel.appendChild(el('option',{value:br,text:br}));
+  const list = $('t4-br-list');
+  list.innerHTML='';
+  const sorted = Object.keys(brokerMap).sort();
+  sorted.forEach(br=>{
+    const opt=document.createElement('option'); opt.value=br; list.appendChild(opt);
   });
+  if(sorted.length>0 && !$('t4-br').value) $('t4-br').value=sorted[0];
 }
 
 // ══════════════════════════════════════
@@ -883,7 +892,7 @@ function renderBrokerTable(wrapId, list, sid, title){
 // ══════════════════════════════════════
 $('t3-search-btn').onclick = async ()=>{
   const loc = $('t3-loc').value;
-  const brName = $('t3-br').value;
+  const brName = $('t3-br-input').value.trim();
   const brInfo = brokerMap[brName];
   if(!brInfo){ showStatus('t3-status','找不到分點資料','error'); return; }
   const sd = $('t3-sd').value, ed = $('t3-ed').value;
@@ -1417,20 +1426,9 @@ async function loadAndFilterVip(){
           dates.forEach(d=>{ const ds=d.replace(/\//g,'-'); if(!latestStr||ds>latestStr) latestStr=ds; });
         }
         row._latestDate=latestStr;
-        let score=0;
-        score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;
-        const amt=parseFloat(row['金額(萬)']||0);
-        const vol=parseFloat(row['張數']||0);
-        const scale=(amt>0)?amt:(vol/10);
-        score+=Math.min(scale/500,1)*40;
-        if(latestStr){
-          const [y,mo,dd]=latestStr.split('-').map(Number);
-          const daysAgo=Math.floor((todayMs-Date.UTC(y,mo-1,dd))/86400000);
-          score+=Math.max(0,20-daysAgo*0.3);
-        }
+        // 直接用GSheets的強度欄位，跟Streamlit完全一致
+        row._score=parseFloat(row['強度']||0);
         const s=row['訊號摘要']||'';
-        if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL'))) score+=10;
-        row._score=Math.round(score*10)/10;
         const dir=row['方向']||'';
         const hasW=s.includes('WS')||s.includes('WL'), hasM=s.includes('MS')||s.includes('ML');
         const isBuy=dir==='買進', isSell=dir==='賣出';
@@ -1496,6 +1494,35 @@ function renderVipTable(){
   if(selBr!=='全部分點') rows=rows.filter(r=>r['分點名稱']===selBr);
   const wrap=$('vip-table-wrap');
   if(!rows.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>'; return; }
+
+  // 加入工作組按鈕放在清單上方
+  const topBar=document.createElement('div');
+  topBar.style.cssText='display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap';
+  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 勾選加入工作組'});
+  addBtn.style.cssText='flex:1;padding:7px';
+  const selAllBtn=el('button',{class:'vip-add-btn',text:'☑️ 全選當頁'});
+  selAllBtn.style.cssText='flex:1;padding:7px;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
+  const clearBtn=el('button',{class:'vip-add-btn',text:'✖ 清除勾選'});
+  clearBtn.style.cssText='flex:1;padding:7px;background:var(--bg3);border:1px solid var(--border);color:var(--text2)';
+  topBar.appendChild(addBtn); topBar.appendChild(selAllBtn); topBar.appendChild(clearBtn);
+
+  addBtn.onclick=async()=>{
+    if(!vipSelected.size){ alert('請先勾選 🗂️ 欄位'); return; }
+    let added=0;
+    vipSelected.forEach(key=>{
+      const [s,b]=key.split('||');
+      const dataRow=vipScanData.find(r=>String(r['股票代號']||'')==s&&String(r['分點名稱']||'')==b);
+      const sname=dataRow?String(dataRow['股票名稱']||''):'';
+      if(!workingGroup.find(w=>w['股票代號']===s&&w['追蹤分點']===b)){
+        workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b}); added++;
+      }
+    });
+    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); renderVipTable(); alert(`✅ 已加入 ${added} 檔`); }
+    else alert('全部已在工作組中');
+  };
+  selAllBtn.onclick=()=>{ rows.forEach(r=>{ const k=`${r['股票代號']}||${r['分點名稱']}`; vipSelected.add(k); }); renderVipTable(); };
+  clearBtn.onclick=()=>{ vipSelected.clear(); renderVipTable(); };
+
   const tbl=el('table',{class:'vip-table'});
   const thead=el('thead');
   thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('符合'),th('強度')));
@@ -1517,25 +1544,8 @@ function renderVipTable(){
     ));
   });
   tbl.appendChild(tbody);
-  wrap.innerHTML=''; wrap.appendChild(tbl);
-  const selWrap=$('vip-sel-wrap');
-  selWrap.innerHTML='';
-  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 勾選加入工作組'});
-  addBtn.onclick=async()=>{
-    if(!vipSelected.size){ alert('請先勾選 🗂️ 欄位'); return; }
-    let added=0;
-    vipSelected.forEach(key=>{
-      const [s,b]=key.split('||');
-      const dataRow=vipScanData.find(r=>String(r['股票代號']||'')==s&&String(r['分點名稱']||'')==b);
-      const sname=dataRow?String(dataRow['股票名稱']||''):'';
-      if(!workingGroup.find(w=>w['股票代號']===s&&w['追蹤分點']===b)){
-        workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b}); added++;
-      }
-    });
-    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); renderVipTable(); alert(`✅ 已加入 ${added} 檔`); }
-    else alert('全部已在工作組中');
-  };
-  selWrap.appendChild(addBtn);
+  wrap.innerHTML=''; wrap.appendChild(topBar); wrap.appendChild(tbl);
+  $('vip-sel-wrap').innerHTML='';
 }
 
 // ══════════════════════════════════════
@@ -1567,14 +1577,9 @@ async function mobileApplyVipFilter(){
           dates.forEach(d=>{ const dt=new Date(d.replace(/\//g,'-')); if(!latest||dt>latest) latest=dt; });
         }
         row._latestDate=latest;
-        let score=0;
-        score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;
-        const scale=row['金額(萬)']?parseFloat(row['金額(萬)']||0):parseFloat(row['張數']||0)/10;
-        score+=Math.min(scale/500,1)*40;
-        if(latest&&!isNaN(latest)){const da=Math.floor((today-latest)/86400000);score+=Math.max(0,20-da*0.3);}
+        // 直接用GSheets的強度欄位，跟Streamlit完全一致
+        row._score=parseFloat(row['強度']||0);
         const s=row['訊號摘要']||'';
-        if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL'))) score+=10;
-        row._score=Math.round(score*10)/10;
         const dir=row['方向']||'';
         const hasW=s.includes('WS')||s.includes('WL'), hasM=s.includes('MS')||s.includes('ML');
         const isBuy=dir==='買進', isSell=dir==='賣出';
