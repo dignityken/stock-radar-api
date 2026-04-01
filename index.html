@@ -315,10 +315,11 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
             <select id="t1-hq" style="min-width:160px"></select>
           </div>
           <div class="ctrl-group">
-            <label>分點（可輸入搜尋）</label>
-            <input type="text" id="t1-br-input" list="t1-br-list" placeholder="輸入分點名稱..." style="min-width:180px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.88rem">
-            <datalist id="t1-br-list"></datalist>
-            <input type="hidden" id="t1-br">
+            <label>分點</label>
+            <div style="display:flex;gap:4px;align-items:center">
+              <input type="text" id="t1-br-filter" placeholder="🔍 搜尋..." style="width:100px;padding:7px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem" oninput="filterBrSelect('t1-br','t1-br-filter')">
+              <select id="t1-br" style="flex:1;min-width:140px"></select>
+            </div>
           </div>
           <div class="ctrl-group">
             <label>起始</label>
@@ -408,10 +409,11 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
             <select id="t3-loc" style="min-width:120px"></select>
           </div>
           <div class="ctrl-group">
-            <label>特定分點（可輸入搜尋）</label>
-            <input type="text" id="t3-br-input" list="t3-br-list" placeholder="輸入分點名稱..." style="min-width:180px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.88rem">
-            <datalist id="t3-br-list"></datalist>
-            <input type="hidden" id="t3-br">
+            <label>特定分點</label>
+            <div style="display:flex;gap:4px;align-items:center">
+              <input type="text" id="t3-br-filter" placeholder="🔍 搜尋..." style="width:100px;padding:7px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem" oninput="filterBrSelect('t3-br','t3-br-filter')">
+              <select id="t3-br" style="flex:1;min-width:140px"></select>
+            </div>
           </div>
           <div class="ctrl-group">
             <label>起始</label>
@@ -735,6 +737,20 @@ async function initApp(){
 // ══════════════════════════════════════
 // BROKER SELECTS
 // ══════════════════════════════════════
+// 分點搜尋過濾
+function filterBrSelect(selId, filterId){
+  const q=$ById(filterId).value.toLowerCase();
+  const sel=$ById(selId);
+  const opts=[...sel.options];
+  opts.forEach(o=>{ o.hidden=q?!o.value.toLowerCase().includes(q):false; });
+  // 若目前選的被隱藏，選第一個可見的
+  if(sel.options[sel.selectedIndex]?.hidden){
+    const first=opts.find(o=>!o.hidden);
+    if(first) sel.value=first.value;
+  }
+}
+function $ById(id){ return document.getElementById(id); }
+
 function buildT1Selects(){
   const hqSel = $('t1-hq');
   hqSel.innerHTML='';
@@ -742,14 +758,11 @@ function buildT1Selects(){
     hqSel.appendChild(el('option',{value:hq,text:hq}));
   });
   hqSel.onchange = ()=>{
-    const list = $('t1-br-list');
-    list.innerHTML='';
+    const br = $('t1-br');
+    br.innerHTML='';
     const branches = brokerTree[hqSel.value]?.branches||[];
-    [...branches].sort().forEach(b=>{
-      const opt=document.createElement('option'); opt.value=b; list.appendChild(opt);
-    });
-    // 預設選第一個
-    if(branches.length>0) $('t1-br-input').value=[...branches].sort()[0];
+    [...branches].sort().forEach(b=>br.appendChild(el('option',{value:b,text:b})));
+    if($('t1-br-filter')) $('t1-br-filter').value='';
   };
   hqSel.dispatchEvent(new Event('change'));
 }
@@ -761,13 +774,10 @@ function buildT3Selects(){
     locSel.appendChild(el('option',{value:loc,text:loc}));
   });
   locSel.onchange = ()=>{
-    const list = $('t3-br-list');
-    list.innerHTML='';
-    const branches = geoMap[locSel.value]||[];
-    [...branches].sort().forEach(b=>{
-      const opt=document.createElement('option'); opt.value=b; list.appendChild(opt);
-    });
-    if(branches.length>0) $('t3-br-input').value=[...branches].sort()[0];
+    const br = $('t3-br');
+    br.innerHTML='';
+    (geoMap[locSel.value]||[]).sort().forEach(b=>br.appendChild(el('option',{value:b,text:b})));
+    if($('t3-br-filter')) $('t3-br-filter').value='';
   };
   locSel.dispatchEvent(new Event('change'));
 }
@@ -787,7 +797,7 @@ function buildT4BrSelect(){
 // ══════════════════════════════════════
 $('t1-search-btn').onclick = async ()=>{
   const hqName = $('t1-hq').value;
-  const brName = $('t1-br-input').value.trim();
+  const brName = $('t1-br').value;
   const hqData = brokerTree[hqName];
   if(!hqData){ showStatus('t1-status','找不到券商','error'); return; }
   const hqId = hqData.bid;
@@ -918,7 +928,7 @@ function renderBrokerTable(wrapId, list, sid, title){
 // ══════════════════════════════════════
 $('t3-search-btn').onclick = async ()=>{
   const loc = $('t3-loc').value;
-  const brName = $('t3-br-input').value.trim();
+  const brName = $('t3-br').value;
   const brInfo = brokerMap[brName];
   if(!brInfo){ showStatus('t3-status','找不到分點資料','error'); return; }
   const sd = $('t3-sd').value, ed = $('t3-ed').value;
