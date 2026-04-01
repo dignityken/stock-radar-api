@@ -1165,8 +1165,8 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
     width:w, height:h,
   });
   currentChart=chart;
-  // K線佔上方45%，買賣超佔中間15%，短MACD佔15%，長MACD佔15%，底部留5%
-  chart.priceScale('right').applyOptions({scaleMargins:{top:0.02,bottom:0.52}});
+  // K線：0~45%，買賣超：45~55%，短MACD：55~77%，長MACD：77~100%
+  chart.priceScale('right').applyOptions({scaleMargins:{top:0.02,bottom:0.55}});
 
   const kSeries=chart.addCandlestickSeries({upColor:'#ef5350',downColor:'#26a69a',borderVisible:false,wickUpColor:'#ef5350',wickDownColor:'#26a69a',priceLineVisible:false});
   kSeries.setData(plotData.map(d=>({time:d.date,open:d.open,high:d.high,low:d.low,close:d.close})));
@@ -1189,7 +1189,7 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
 
   const volS=chart.addHistogramSeries({priceScaleId:'vol',lastValueVisible:false,priceLineVisible:false});
   volS.setData(plotData.map(d=>({time:d.date,value:d.vol,color:d.vol>0?'rgba(239,83,80,0.8)':d.vol<0?'rgba(38,166,154,0.8)':'rgba(120,120,120,0.5)'})));
-  chart.priceScale('vol').applyOptions({scaleMargins:{top:0.50,bottom:0.42},visible:false});
+  chart.priceScale('vol').applyOptions({scaleMargins:{top:0.47,bottom:0.53},visible:false});
 
   const h1s=chart.addHistogramSeries({priceScaleId:'m1',lastValueVisible:false,priceLineVisible:false});
   h1s.setData(plotData.map(d=>({time:d.date,value:d.M1_hist,color:d.M1_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));
@@ -1198,7 +1198,7 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   m1s.setMarkers(macdMarkers1);
   const s1s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m1',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
   s1s.setData(plotData.map(d=>({time:d.date,value:d.M1_sig})));
-  chart.priceScale('m1').applyOptions({scaleMargins:{top:0.65,bottom:0.22},visible:false});
+  chart.priceScale('m1').applyOptions({scaleMargins:{top:0.57,bottom:0.30},visible:false});
 
   const h2s=chart.addHistogramSeries({priceScaleId:'m2',lastValueVisible:false,priceLineVisible:false});
   h2s.setData(plotData.map(d=>({time:d.date,value:d.M2_hist,color:d.M2_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));
@@ -1207,35 +1207,40 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   m2s.setMarkers(macdMarkers2);
   const s2s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m2',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
   s2s.setData(plotData.map(d=>({time:d.date,value:d.M2_sig})));
-  chart.priceScale('m2').applyOptions({scaleMargins:{top:0.82,bottom:0.02},visible:false});
+  chart.priceScale('m2').applyOptions({scaleMargins:{top:0.77,bottom:0.02},visible:false});
 
   const dictByTime={};
   plotData.forEach(d=>dictByTime[d.date]=d);
   const legend=$('chart-legend');
   const DOW=['日','一','二','三','四','五','六'];
 
+  function updateLegend(d){
+    if(!d) return;
+    const vc=d.vol>=0?'#ef5350':'#26a69a';
+    legend.innerHTML=`
+      <div class="legend-title">${sid} ${stockName} | ${d.date} 週${DOW[new Date(d.date+'T00:00:00').getDay()]}</div>
+      <div class="legend-row"><span class="legend-lbl">開</span><span>${(d.open??0).toFixed(2)}</span></div>
+      <div class="legend-row"><span class="legend-lbl">高</span><span style="color:#ef5350">${(d.high??0).toFixed(2)}</span></div>
+      <div class="legend-row"><span class="legend-lbl">低</span><span style="color:#26a69a">${(d.low??0).toFixed(2)}</span></div>
+      <div class="legend-row"><span class="legend-lbl">收</span><span style="font-weight:700">${(d.close??0).toFixed(2)}</span></div>
+      <div class="legend-vol">買賣(${brName}) <span style="color:${vc};font-weight:700">${d.vol} 張</span></div>
+      <div class="legend-macd">短 柱<span style="color:${(d.M1_hist??0)>=0?'#ef5350':'#26a69a'}"> ${(d.M1_hist??0).toFixed(2)}</span> 快<span style="color:#FFD600"> ${(d.M1_macd??0).toFixed(2)}</span> 慢<span style="color:#00E676"> ${(d.M1_sig??0).toFixed(2)}</span></div>
+      <div class="legend-macd">長 柱<span style="color:${(d.M2_hist??0)>=0?'#ef5350':'#26a69a'}"> ${(d.M2_hist??0).toFixed(2)}</span> 快<span style="color:#FFD600"> ${(d.M2_macd??0).toFixed(2)}</span> 慢<span style="color:#00E676"> ${(d.M2_sig??0).toFixed(2)}</span></div>
+    `;
+  }
+
+  // 預設顯示最後一根K線
+  updateLegend(plotData[plotData.length-1]);
+
   chart.subscribeCrosshairMove(param=>{
-    if(!param.time){
-      legend.innerHTML='將滑鼠移至K線上查看數據'; return;
-    }
-    // param.time 可能是數字 timestamp 或字串，統一轉成 YYYY-MM-DD
+    if(!param.time) return;
     let timeKey = param.time;
     if(typeof timeKey === 'number'){
       const dt = new Date(timeKey*1000);
       timeKey = dt.toISOString().split('T')[0];
     }
-    const d=dictByTime[timeKey]; if(!d) return;
-    const vc=d.vol>=0?'#ef5350':'#26a69a';
-    legend.innerHTML=`
-      <div class="legend-title">${sid} ${stockName} | ${d.date} 週${DOW[new Date(d.date+'T00:00:00').getDay()]}</div>
-      <div class="legend-row"><span class="legend-lbl">開盤</span><span>${(d.open??0).toFixed(2)}</span></div>
-      <div class="legend-row"><span class="legend-lbl">最高</span><span style="color:#ef5350">${(d.high??0).toFixed(2)}</span></div>
-      <div class="legend-row"><span class="legend-lbl">最低</span><span style="color:#26a69a">${(d.low??0).toFixed(2)}</span></div>
-      <div class="legend-row"><span class="legend-lbl">收盤</span><span style="font-weight:700">${(d.close??0).toFixed(2)}</span></div>
-      <div class="legend-vol">買賣(${brName}) <span style="color:${vc};font-weight:700">${d.vol} 張</span></div>
-      <div class="legend-macd">短MACD 柱<span style="color:${(d.M1_hist??0)>=0?'#ef5350':'#26a69a'}"> ${(d.M1_hist??0).toFixed(2)}</span> 快<span style="color:#FFD600"> ${(d.M1_macd??0).toFixed(2)}</span> 慢<span style="color:#00E676"> ${(d.M1_sig??0).toFixed(2)}</span></div>
-      <div class="legend-macd">長MACD 柱<span style="color:${(d.M2_hist??0)>=0?'#ef5350':'#26a69a'}"> ${(d.M2_hist??0).toFixed(2)}</span> 快<span style="color:#FFD600"> ${(d.M2_macd??0).toFixed(2)}</span> 慢<span style="color:#00E676"> ${(d.M2_sig??0).toFixed(2)}</span></div>
-    `;
+    const d=dictByTime[timeKey];
+    if(d) updateLegend(d);
   });
 
   new ResizeObserver(()=>{
