@@ -605,6 +605,14 @@ async function initApp(){
   $('sb-role').textContent = userRole==='vip'?'⭐ VIP 會員':userRole==='admin'?'🔧 管理員':'👤 會員';
 
   // 載入券商資料
+  const mainContent = $('main-content');
+  const loadingDiv = document.createElement('div');
+  loadingDiv.id = 'broker-loading';
+  loadingDiv.className = 'status-msg status-info';
+  loadingDiv.style.margin = '0 0 10px';
+  loadingDiv.innerHTML = '<div class="loading"><div class="spinner"></div>正在連線伺服器，首次啟動約需 30~60 秒請稍候...</div>';
+  mainContent.insertBefore(loadingDiv, mainContent.firstChild);
+
   try {
     const [tree, map, geo] = await Promise.all([
       apiFetch('/api/brokers/tree'),
@@ -615,7 +623,11 @@ async function initApp(){
     buildT1Selects();
     buildT3Selects();
     buildT4BrSelect();
-  } catch(e){ console.error('載入券商資料失敗',e); }
+    loadingDiv.remove();
+  } catch(e){
+    loadingDiv.className = 'status-msg status-error';
+    loadingDiv.innerHTML = `⚠️ 伺服器連線失敗，請重新整理頁面再試。(${e.message})`;
+  }
 
   // 設預設日期
   ['t1','t2','t3'].forEach(t=>{
