@@ -1766,16 +1766,14 @@ async function mobileApplyVipFilter(){
   const wrap=$('m-vip-table-wrap');
   if(!filtered.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>'; return; }
 
-  // 按鈕在上方
+  // 按鈕在上方，緊湊尺寸
   const topBar=document.createElement('div');
-  topBar.style.cssText='display:flex;gap:5px;margin-bottom:6px';
+  topBar.style.cssText='display:flex;gap:4px;margin-bottom:6px';
   const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'});
-  addBtn.style.cssText='flex:1;padding:7px';
-  const selAllBtn=el('button',{class:'vip-add-btn',text:'☑️ 全選'});
-  selAllBtn.style.cssText='flex:0 0 auto;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
-  const clearBtn=el('button',{class:'vip-add-btn',text:'✖'});
-  clearBtn.style.cssText='flex:0 0 auto;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--text2)';
-  topBar.appendChild(addBtn); topBar.appendChild(selAllBtn); topBar.appendChild(clearBtn);
+  addBtn.style.cssText='flex:1;padding:5px 8px;font-size:.78rem';
+  const selAllBtn=el('button',{class:'vip-add-btn',text:vipAllSelected?'☒ 取消全選':'☑ 全選'});
+  selAllBtn.style.cssText='padding:5px 8px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
+  topBar.appendChild(addBtn); topBar.appendChild(selAllBtn);
 
   addBtn.onclick=async()=>{
     if(!vipSelected.size){ alert('請先勾選'); return; }
@@ -1788,11 +1786,16 @@ async function mobileApplyVipFilter(){
         workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b}); added++;
       }
     });
-    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); mobileApplyVipFilter(); alert(`✅ 已加入 ${added} 檔`); }
+    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); vipAllSelected=false; mobileApplyVipFilter(); alert(`✅ 已加入 ${added} 檔`); }
     else alert('全部已在工作組中');
   };
-  selAllBtn.onclick=()=>{ filtered.forEach(r=>{ const k=`${r['股票代號']}||${r['分點名稱']}`; vipSelected.add(k); }); mobileApplyVipFilter(); };
-  clearBtn.onclick=()=>{ vipSelected.clear(); mobileApplyVipFilter(); };
+  selAllBtn.onclick=()=>{
+    vipAllSelected=!vipAllSelected;
+    selAllBtn.textContent=vipAllSelected?'☒ 取消全選':'☑ 全選';
+    if(vipAllSelected) filtered.forEach(r=>vipSelected.add(`${r['股票代號']}||${r['分點名稱']}`));
+    else vipSelected.clear();
+    mobileApplyVipFilter();
+  };
 
   const tbl=el('table',{class:'vip-table'});
   const thead=el('thead');
