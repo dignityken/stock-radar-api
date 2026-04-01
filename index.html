@@ -534,6 +534,7 @@ let vipFiltered = [];
 let vipSelected = new Set();
 let vipAllSelected = false; // 全選狀態
 let currentChart = null;
+let lastStockName = {}; // {sid: '中文名'} 快取
 let currentTab = 't1';
 
 // ══════════════════════════════════════
@@ -1044,7 +1045,11 @@ async function drawChart(){
     const histRes = needBroker ? results[1] : null;
 
     const kdata = klineRes.data || [];
-    const stockName = (histRes?.stock_name) || klineRes.stock_name || '';
+    // 優先用券商歷史的中文股名，快取起來，60m 無分點時沿用快取
+    const sid_ = sid;
+    const fetchedName = (histRes?.stock_name) || klineRes.stock_name || '';
+    if(fetchedName && histRes?.stock_name) lastStockName[sid_] = histRes.stock_name;
+    const stockName = lastStockName[sid_] || fetchedName;
     const volMap = {};
     if(histRes) (histRes.records||[]).forEach(r=>{ volMap[r.Date]=r['買賣超']; });
     const is60m = (periodVal === '60m');
@@ -1294,8 +1299,18 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   function updateLegend(d){
     if(!d) return;
     const vc=d.vol>=0?'#ef5350':'#26a69a';
+    // d.date 可能是 'YYYY-MM-DD' 或 Unix timestamp 數字
+    let dateLabel, dowLabel;
+    if(typeof d.date === 'number'){
+      const dt = new Date(d.date*1000);
+      dateLabel = dt.toLocaleString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+      dowLabel = DOW[dt.getDay()];
+    } else {
+      dateLabel = d.date;
+      dowLabel = DOW[new Date(d.date+'T00:00:00').getDay()];
+    }
     legend.innerHTML=`
-      <div class="legend-title">${sid} ${stockName} | ${d.date} 週${DOW[new Date(d.date+'T00:00:00').getDay()]}</div>
+      <div class="legend-title">${sid} ${stockName} | ${dateLabel} 週${dowLabel}</div>
       <div class="legend-row"><span class="legend-lbl">開盤</span><span>${(d.open??0).toFixed(2)}</span></div>
       <div class="legend-row"><span class="legend-lbl">最高</span><span style="color:#ef5350">${(d.high??0).toFixed(2)}</span></div>
       <div class="legend-row"><span class="legend-lbl">最低</span><span style="color:#26a69a">${(d.low??0).toFixed(2)}</span></div>
