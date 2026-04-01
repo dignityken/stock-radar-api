@@ -378,6 +378,13 @@ def broker_stocks(hq_id: str, br_id: str, start: str, end: str, unit: str = "sha
         df_all["買%"] = (df_all[col_buy] / df_all["總額"] * 100).round(1)
         df_all["賣%"] = (df_all[col_sell] / df_all["總額"] * 100).round(1)
         df_all["股票代號"] = df_all["股票名稱"].apply(get_stock_id)
+        # 把名稱中的代號前綴去掉，只留中文名稱
+        def strip_id(name, sid):
+            if sid and name.startswith(sid):
+                return name[len(sid):].strip()
+            return name
+        df_all["股票名稱"] = df_all.apply(lambda r: strip_id(r["股票名稱"], r["股票代號"]), axis=1)
+        df_all = df_all.replace([float('inf'), float('-inf')], 0).fillna(0)
         return df_all.to_dict(orient="records")
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -441,39 +448,55 @@ def broker_history(sid: str, br_id: str, start: str = "2015-01-01"):
 
 @app.get("/api/stock/kline")
 def stock_kline(sid: str, start: str = "2015-01-01"):
-    """TAB4：K線資料（yfinance）"""
+    """TAB4：K線資料 proxy — 繞過 CORS，後端幫前端抓 Yahoo Finance"""
     import math
     end = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    # 計算 range 參數
+    try:
+        start_dt = datetime.datetime.strptime(start, "%Y-%m-%d")
+        years = (datetime.datetime.now() - start_dt).days / 365
+        range_str = "20y" if years > 10 else "10y" if years > 5 else "5y" if years > 2 else "2y"
+    except Exception:
+        range_str = "10y"
+
+    YAHOO_HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+    }
+
     for suffix in [".TW", ".TWO"]:
         ticker = f"{sid}{suffix}"
         try:
-            df = yf.download(ticker, start=start, end=end, progress=False,
-                             auto_adjust=False, repair=False)
-            if df.empty: continue
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = [col[0] for col in df.columns]
-            df.reset_index(inplace=True)
-            if "Date" not in df.columns: continue
-            df["Date"] = pd.to_datetime(df["Date"]).dt.tz_localize(None).dt.strftime("%Y-%m-%d")
-            df = df.dropna(subset=["Close"])
-            if df.empty: continue
-            # 清除 NaN/Inf
-            for c in ["Open","High","Low","Close"]:
-                if c in df.columns:
-                    df[c] = pd.to_numeric(df[c], errors="coerce")
-            df = df.replace([float('inf'), float('-inf')], None).dropna(subset=["Close"])
-            cols = [c for c in ["Date","Open","High","Low","Close"] if c in df.columns]
-            result = []
-            for _, row in df[cols].iterrows():
-                rec = {}
-                for c in cols:
-                    v = row[c]
-                    rec[c] = None if (v is None or (isinstance(v, float) and math.isnan(v))) else v
-                result.append(rec)
-            if result:
-                return {"suffix": suffix, "data": result}
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={range_str}&interval=1d&includePrePost=false"
+            r = requests.get(url, headers=YAHOO_HEADERS, timeout=15)
+            if not r.ok:
+                continue
+            j = r.json()
+            result = j.get("chart", {}).get("result", [])
+            if not result:
+                continue
+            result = result[0]
+            timestamps = result.get("timestamp", [])
+            quotes = result.get("indicators", {}).get("quote", [{}])[0]
+            if not timestamps or not quotes:
+                continue
+            data = []
+            for i, ts in enumerate(timestamps):
+                c = quotes.get("close", [])[i] if i < len(quotes.get("close", [])) else None
+                o = quotes.get("open", [])[i] if i < len(quotes.get("open", [])) else None
+                h = quotes.get("high", [])[i] if i < len(quotes.get("high", [])) else None
+                l = quotes.get("low", [])[i] if i < len(quotes.get("low", [])) else None
+                if c is None or (isinstance(c, float) and math.isnan(c)):
+                    continue
+                date_str = datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
+                if date_str < start:
+                    continue
+                data.append({"Date": date_str, "Open": o, "High": h, "Low": l, "Close": c})
+            if data:
+                return {"suffix": suffix, "data": data}
         except Exception:
             continue
+
     raise HTTPException(404, f"找不到 {sid} 的K線資料")
 
 # ==========================================
