@@ -1221,17 +1221,26 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   updateLegend(plotData[plotData.length-1]);
 
   chart.subscribeCrosshairMove(param=>{
-    if(!param.time) return; // 不重置，保留最後一根
+    if(!param.time) return;
     let timeKey = param.time;
-    if(typeof timeKey === 'object' && timeKey.year){
-      timeKey = `${timeKey.year}-${String(timeKey.month).padStart(2,'0')}-${String(timeKey.day).padStart(2,'0')}`;
+    if(typeof timeKey === 'object'){
+      // {year, month, day} format
+      if(timeKey.year !== undefined){
+        timeKey = `${timeKey.year}-${String(timeKey.month).padStart(2,'0')}-${String(timeKey.day).padStart(2,'0')}`;
+      }
     } else if(typeof timeKey === 'number'){
       timeKey = new Date(timeKey*1000).toISOString().split('T')[0];
     } else {
       timeKey = String(timeKey);
     }
     const d = dictByTime[timeKey];
-    if(d) updateLegend(d);
+    if(d){ updateLegend(d); return; }
+    // fallback: 找最近的日期
+    const keys = Object.keys(dictByTime).sort();
+    const closest = keys.reduce((prev,curr)=>
+      Math.abs(curr.localeCompare(timeKey)) < Math.abs(prev.localeCompare(timeKey)) ? curr : prev
+    , keys[0]);
+    if(closest && dictByTime[closest]) updateLegend(dictByTime[closest]);
   });
 
   new ResizeObserver(()=>{
