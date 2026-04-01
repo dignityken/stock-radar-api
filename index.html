@@ -240,7 +240,6 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
           <div>
             <label>排序依據</label>
             <select id="vip-sort">
-              <option value="_score">強度</option>
               <option value="股票名稱">股票名稱</option>
               <option value="_match">符合度</option>
               <option value="張數">張數</option>
@@ -279,7 +278,6 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
               <div><label>最低張數</label><input type="number" id="m-vip-vol" value="20" min="0" step="10" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem"></div>
               <div><label>分點過濾</label><select id="m-vip-broker-sel"><option>全部分點</option></select></div>
               <div><label>排序依據</label><select id="m-vip-sort">
-                <option value="_score">強度</option>
                 <option value="股票名稱">股票名稱</option>
                 <option value="_match">符合度</option>
                 <option value="張數">張數</option>
@@ -1472,7 +1470,7 @@ function applyVipFilter(){
     if(parseFloat(r['張數']||0)<minVol) return false;
     return true;
   }).sort((a,b)=>{
-    const sortBy=$('vip-sort')?.value||'_score';
+    const sortBy=$('vip-sort')?.value||'張數';
     if(sortBy==='股票名稱') return String(a['股票名稱']||'').localeCompare(String(b['股票名稱']||''));
     if(sortBy==='最新訊號日') return (b._latestDate||'')>(a._latestDate||'')?1:-1;
     if(sortBy==='_match') return String(a._match||'').localeCompare(String(b._match||''));
@@ -1506,14 +1504,13 @@ function renderVipTable(){
   // 加入工作組按鈕放在清單上方
   const topBar=document.createElement('div');
   topBar.style.cssText='display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap';
-  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 勾選加入工作組'});
-  addBtn.style.cssText='flex:1;padding:7px';
-  const selAllBtn=el('button',{class:'vip-add-btn',text:'☑️ 全選當頁'});
-  selAllBtn.style.cssText='flex:1;padding:7px;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
-  const clearBtn=el('button',{class:'vip-add-btn',text:'✖ 清除勾選'});
-  clearBtn.style.cssText='flex:1;padding:7px;background:var(--bg3);border:1px solid var(--border);color:var(--text2)';
-  topBar.appendChild(addBtn); topBar.appendChild(selAllBtn); topBar.appendChild(clearBtn);
+  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'});
+  addBtn.style.cssText='flex:1;padding:6px 8px;font-size:.78rem';
+  const selAllBtn=el('button',{class:'vip-add-btn',text:'☑ 全選'});
+  selAllBtn.style.cssText='padding:6px 10px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
+  topBar.appendChild(addBtn); topBar.appendChild(selAllBtn);
 
+  let allSelected=false;
   addBtn.onclick=async()=>{
     if(!vipSelected.size){ alert('請先勾選 🗂️ 欄位'); return; }
     let added=0;
@@ -1525,15 +1522,21 @@ function renderVipTable(){
         workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b}); added++;
       }
     });
-    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); renderVipTable(); alert(`✅ 已加入 ${added} 檔`); }
+    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); allSelected=false; renderVipTable(); alert(`✅ 已加入 ${added} 檔`); }
     else alert('全部已在工作組中');
   };
-  selAllBtn.onclick=()=>{ rows.forEach(r=>{ const k=`${r['股票代號']}||${r['分點名稱']}`; vipSelected.add(k); }); renderVipTable(); };
-  clearBtn.onclick=()=>{ vipSelected.clear(); renderVipTable(); };
+  selAllBtn.onclick=()=>{
+    allSelected=!allSelected;
+    selAllBtn.textContent=allSelected?'☒ 取消全選':'☑ 全選';
+    if(allSelected) rows.forEach(r=>vipSelected.add(`${r['股票代號']}||${r['分點名稱']}`));
+    else vipSelected.clear();
+    renderVipTable();
+  };
 
   const tbl=el('table',{class:'vip-table'});
   const thead=el('thead');
-  thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('符合'),th('強度')));
+  // 欄位：📊 🗂️ 代號 名稱 分點 方向 符合 強度 張數 金額(萬) 佔比% 最新訊號日 訊號摘要
+  thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('方向'),th('符合'),th('強度'),th('張數'),th('金額'),th('佔比%'),th('日期'),th('訊號')));
   tbl.appendChild(thead);
   const tbody=el('tbody');
   rows.forEach(row=>{
@@ -1548,7 +1551,12 @@ function renderVipTable(){
     tbody.appendChild(tr(
       td(loadCb), td(selCb),
       td({text:sid}), td({text:String(row['股票名稱']||'')}),
-      td({text:br}), td({text:row._match||''}), td({text:String(row._score)})
+      td({text:br}), td({text:String(row['方向']||'')}),
+      td({text:row._match||''}), td({text:String(row._score)}),
+      td({text:String(row['張數']||'')}), td({text:String(row['金額(萬)']||'')}),
+      td({text:String(row['佔比%']||'')}),
+      td({text:String(row['最新訊號日']||'').slice(0,10)}),
+      td({text:String(row['訊號摘要']||'')})
     ));
   });
   tbl.appendChild(tbody);
@@ -1635,7 +1643,7 @@ async function mobileApplyVipFilter(){
     if(parseFloat(r['張數']||0)<minVol) return false;
     return true;
   }).sort((a,b)=>{
-    const sortBy=$('m-vip-sort')?.value||'_score';
+    const sortBy=$('m-vip-sort')?.value||'張數';
     if(sortBy==='股票名稱') return String(a['股票名稱']||'').localeCompare(String(b['股票名稱']||''));
     if(sortBy==='最新訊號日') return (b._latestDate||'')>(a._latestDate||'')?1:-1;
     if(sortBy==='_match') return String(a._match||'').localeCompare(String(b._match||''));
