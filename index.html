@@ -1587,8 +1587,8 @@ function renderVipTable(){
 
   const tbl=el('table',{class:'vip-table'});
   const thead=el('thead');
-  // 欄位：📊 🗂️ 代號 名稱 分點 方向 符合 強度 張數 金額(萬) 佔比% 最新訊號日 訊號摘要
-  thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('方向'),th('符合'),th('強度'),th('張數'),th('金額'),th('佔比%'),th('日期'),th('訊號')));
+  // 欄位：📊 🗂️ 代號 名稱 分點 方向 符合 張數 金額(萬) 佔比% 最新訊號日 訊號摘要
+  thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('方向'),th('符合'),th('張數'),th('金額'),th('佔比%'),th('日期'),th('訊號')));
   tbl.appendChild(thead);
   const tbody=el('tbody');
   rows.forEach(row=>{
@@ -1604,7 +1604,7 @@ function renderVipTable(){
       td(loadCb), td(selCb),
       td({text:sid}), td({text:String(row['股票名稱']||'')}),
       td({text:br}), td({text:String(row['方向']||'')}),
-      td({text:row._match||''}), td({text:String(row._score)}),
+      td({text:row._match||''}),
       td({text:String(row['張數']||'')}), td({text:String(row['金額(萬)']||'')}),
       td({text:String(row['佔比%']||'')}),
       td({text:String(row['最新訊號日']||'').slice(0,10)}),
