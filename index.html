@@ -930,11 +930,7 @@ $('t3-search-btn').onclick = async ()=>{
 // ══════════════════════════════════════
 function switchToT4(sid, brName){
   $('t4-sid').value = sid;
-  // 找到對應分點
-  const sel = $('t4-br');
-  for(let i=0;i<sel.options.length;i++){
-    if(sel.options[i].value===brName){ sel.selectedIndex=i; break; }
-  }
+  $('t4-br').value = brName;
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector('.nav-btn[data-tab=t4]').classList.add('active');
   ['t1','t2','t3','t4'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');
@@ -1426,9 +1422,21 @@ async function loadAndFilterVip(){
           dates.forEach(d=>{ const ds=d.replace(/\//g,'-'); if(!latestStr||ds>latestStr) latestStr=ds; });
         }
         row._latestDate=latestStr;
-        // 直接用GSheets的強度欄位，跟Streamlit完全一致
-        row._score=parseFloat(row['強度']||0);
+        // 強度計算（跟Streamlit _score函數一致）
+        let score=0;
+        score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;
+        const amt=parseFloat(row['金額(萬)']||0);
+        const vol=parseFloat(row['張數']||0);
+        const scale=(amt>0)?amt:(vol/10);
+        score+=Math.min(scale/500,1)*40;
+        if(latestStr){
+          const [y,mo,dd]=latestStr.split('-').map(Number);
+          const daysAgo=Math.floor((todayMs-Date.UTC(y,mo-1,dd))/86400000);
+          score+=Math.max(0,20-daysAgo*0.3);
+        }
         const s=row['訊號摘要']||'';
+        if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL'))) score+=10;
+        row._score=Math.round(score*10)/10;
         const dir=row['方向']||'';
         const hasW=s.includes('WS')||s.includes('WL'), hasM=s.includes('MS')||s.includes('ML');
         const isBuy=dir==='買進', isSell=dir==='賣出';
@@ -1569,23 +1577,36 @@ function initMobileVipPanel(){
 
 async function mobileApplyVipFilter(){
   const sheet=$('m-vip-period').value;
+  // 共用 desktop VIP 的資料，避免重複載入
   if(!vipScanData.length || vipScanData._sheet!==sheet){
     $('m-vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入中...</div>';
     try {
       const raw = await apiFetch(`/api/vip/scan?sheet=${sheet}`);
       const today=new Date();
+      const todayMs=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());
       raw.forEach(row=>{
-        let latest=null;
+        let latestStr=null;
         const lc=row['最新訊號日'];
-        if(lc){ latest=new Date(String(lc).replace(/\//g,'-')); }
-        if(!latest||isNaN(latest)){
+        if(lc){ latestStr=String(lc).replace(/\//g,'-').slice(0,10); }
+        if(!latestStr){
           const dates=(row['訊號摘要']||'').match(/\d{4}[\/\-]\d{2}[\/\-]\d{2}/g)||[];
-          dates.forEach(d=>{ const dt=new Date(d.replace(/\//g,'-')); if(!latest||dt>latest) latest=dt; });
+          dates.forEach(d=>{ const ds=d.replace(/\//g,'-'); if(!latestStr||ds>latestStr) latestStr=ds; });
         }
-        row._latestDate=latest;
-        // 直接用GSheets的強度欄位，跟Streamlit完全一致
-        row._score=parseFloat(row['強度']||0);
+        row._latestDate=latestStr;
+        let score=0;
+        score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;
+        const amt=parseFloat(row['金額(萬)']||0);
+        const vol=parseFloat(row['張數']||0);
+        const scale=(amt>0)?amt:(vol/10);
+        score+=Math.min(scale/500,1)*40;
+        if(latestStr){
+          const [y,mo,dd]=latestStr.split('-').map(Number);
+          const daysAgo=Math.floor((todayMs-Date.UTC(y,mo-1,dd))/86400000);
+          score+=Math.max(0,20-daysAgo*0.3);
+        }
         const s=row['訊號摘要']||'';
+        if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL'))) score+=10;
+        row._score=Math.round(score*10)/10;
         const dir=row['方向']||'';
         const hasW=s.includes('WS')||s.includes('WL'), hasM=s.includes('MS')||s.includes('ML');
         const isBuy=dir==='買進', isSell=dir==='賣出';
