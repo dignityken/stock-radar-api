@@ -37,10 +37,10 @@ button{cursor:pointer}
 
 /* Desktop layout */
 @media(min-width:769px){
-  html,body{height:100%;overflow:hidden}
-  #app{height:100%}
-  .app-layout{display:flex;flex-direction:row;height:100%;overflow:hidden}
-  .sidebar{width:var(--sw,280px);min-width:var(--sw,280px);height:100%;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;transition:width .2s,min-width .2s}
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden}
+  #app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex!important;flex-direction:row;overflow:hidden}
+  .app-layout{display:contents}
+  .sidebar{width:var(--sw,280px);height:100%;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;transition:width .2s}
   .app-layout.wide-sidebar .sidebar{--sw:420px}
   .sidebar-header{padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
   .sidebar-nav{padding:8px;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -51,7 +51,7 @@ button{cursor:pointer}
   .sidebar-logout{padding:10px;border-top:1px solid var(--border);flex-shrink:0}
   .btn-logout{width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:.85rem}
   .btn-logout:hover{border-color:var(--red);color:var(--red)}
-  .main-content{flex:1;min-width:0;min-height:0;height:100%;overflow-y:auto;padding:20px 24px}
+  .main-content{flex:1;min-width:0;height:100%;overflow-y:auto;padding:20px 24px;box-sizing:border-box}
   #mobile-vip-panel{display:none!important}
 }
 
@@ -623,8 +623,12 @@ $('logout-btn').onclick = doLogout;
 // ══════════════════════════════════════
 async function initApp(){
   $('login-screen').style.display='none';
-  // 桌面版用 block（讓 CSS flex 生效），手機版也是 block
-  $('app').style.display='block';
+  // 桌面版讓 CSS 控制 display（position:fixed flex），手機版設 block
+  if(window.innerWidth <= 768){
+    $('app').style.display='block';
+  } else {
+    $('app').style.removeProperty('display');
+  }
   $('sb-username').textContent = username;
   $('sb-role').textContent = userRole==='vip'?'⭐ VIP 會員':userRole==='admin'?'🔧 管理員':'👤 會員';
 
