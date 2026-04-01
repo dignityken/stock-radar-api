@@ -168,7 +168,7 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
   z-index:300;flex-direction:column;
   box-shadow:-8px 0 32px rgba(0,0,0,.5);
 }
-#vip-overlay.open{display:flex}
+#vip-overlay.open{display:flex!important}
 #vip-overlay-inner{display:flex;flex-direction:column;height:100%;padding:12px;gap:8px;min-height:0}
 #vip-overlay-header{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-bottom:8px;border-bottom:1px solid var(--border)}
 @media(max-width:768px){#vip-overlay{display:none!important}}
@@ -1764,7 +1764,7 @@ async function mobileApplyVipFilter(){
 })();
 </script>
 <!-- VIP 結果 Overlay（桌面版，浮在右側） -->
-<div id="vip-overlay" style="display:none">
+<div id="vip-overlay">
   <div id="vip-overlay-inner">
     <div id="vip-overlay-header">
       <span id="vip-overlay-caption" style="font-size:.85rem;color:var(--text2)"></span>
