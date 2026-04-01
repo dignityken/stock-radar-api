@@ -1544,7 +1544,13 @@ function renderVipTable(){
     ));
   });
   tbl.appendChild(tbody);
-  wrap.innerHTML=''; wrap.appendChild(topBar); wrap.appendChild(tbl);
+  wrap.innerHTML='';
+  wrap.appendChild(topBar);
+  // 固定高度捲動區
+  const scrollWrap=document.createElement('div');
+  scrollWrap.style.cssText='max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px';
+  scrollWrap.appendChild(tbl);
+  wrap.appendChild(scrollWrap);
   $('vip-sel-wrap').innerHTML='';
 }
 
@@ -1634,6 +1640,35 @@ async function mobileApplyVipFilter(){
 
   const wrap=$('m-vip-table-wrap');
   if(!filtered.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>'; return; }
+
+  // 按鈕在上方
+  const topBar=document.createElement('div');
+  topBar.style.cssText='display:flex;gap:5px;margin-bottom:6px';
+  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'});
+  addBtn.style.cssText='flex:1;padding:7px';
+  const selAllBtn=el('button',{class:'vip-add-btn',text:'☑️ 全選'});
+  selAllBtn.style.cssText='flex:0 0 auto;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
+  const clearBtn=el('button',{class:'vip-add-btn',text:'✖'});
+  clearBtn.style.cssText='flex:0 0 auto;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--text2)';
+  topBar.appendChild(addBtn); topBar.appendChild(selAllBtn); topBar.appendChild(clearBtn);
+
+  addBtn.onclick=async()=>{
+    if(!vipSelected.size){ alert('請先勾選'); return; }
+    let added=0;
+    vipSelected.forEach(key=>{
+      const [s,b]=key.split('||');
+      const dataRow=vipScanData.find(r=>String(r['股票代號']||'')==s&&String(r['分點名稱']||'')==b);
+      const sname=dataRow?String(dataRow['股票名稱']||''):'';
+      if(!workingGroup.find(w=>w['股票代號']===s&&w['追蹤分點']===b)){
+        workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b}); added++;
+      }
+    });
+    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); mobileApplyVipFilter(); alert(`✅ 已加入 ${added} 檔`); }
+    else alert('全部已在工作組中');
+  };
+  selAllBtn.onclick=()=>{ filtered.forEach(r=>{ const k=`${r['股票代號']}||${r['分點名稱']}`; vipSelected.add(k); }); mobileApplyVipFilter(); };
+  clearBtn.onclick=()=>{ vipSelected.clear(); mobileApplyVipFilter(); };
+
   const tbl=el('table',{class:'vip-table'});
   const thead=el('thead');
   thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('符合')));
@@ -1655,27 +1690,18 @@ async function mobileApplyVipFilter(){
     ));
   });
   tbl.appendChild(tbody);
-  wrap.innerHTML=''; wrap.appendChild(tbl);
 
-  const selWrap=$('m-vip-sel-wrap');
-  selWrap.innerHTML='';
-  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 勾選加入工作組'});
-  addBtn.onclick=async()=>{
-    if(!vipSelected.size){ alert('請先勾選'); return; }
-    let added=0;
-    vipSelected.forEach(key=>{
-      const [s,b]=key.split('||');
-      const dataRow=vipScanData.find(r=>String(r['股票代號']||'')==s&&String(r['分點名稱']||'')==b);
-      const sname=dataRow?String(dataRow['股票名稱']||''):'';
-      if(!workingGroup.find(w=>w['股票代號']===s&&w['追蹤分點']===b)){
-        workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b}); added++;
-      }
-    });
-    if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); mobileApplyVipFilter(); alert(`✅ 已加入 ${added} 檔`); }
-    else alert('全部已在工作組中');
-  };
-  selWrap.appendChild(addBtn);
+  // 固定高度捲動
+  const scrollWrap=document.createElement('div');
+  scrollWrap.style.cssText='max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:6px';
+  scrollWrap.appendChild(tbl);
+
+  wrap.innerHTML='';
+  wrap.appendChild(topBar);
+  wrap.appendChild(scrollWrap);
+  $('m-vip-sel-wrap').innerHTML='';
 }
+
 (async()=>{
   if(token && username){
     try { await initApp(); }
