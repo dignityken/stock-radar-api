@@ -155,7 +155,8 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 .vip-row{display:flex;justify-content:space-between;font-size:.74rem;color:var(--text2)}
 .vip-apply-btn{width:100%;padding:7px;background:var(--accent);color:#fff;border:none;border-radius:5px;font-size:.8rem;font-weight:600;margin-top:4px}
 .vip-table{width:100%;border-collapse:collapse;font-size:.74rem}
-.vip-table th{color:var(--text2);padding:4px;border-bottom:1px solid var(--border);font-weight:600}
+/* FIX 4: Sticky thead for VIP table */
+.vip-table th{color:var(--text2);padding:4px;border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;z-index:10;background:var(--bg3)}
 .vip-table td{padding:4px;border-bottom:1px solid var(--border)}
 .vip-add-btn{width:100%;padding:6px;margin-top:6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2);font-size:.75rem}
 .vip-add-btn:hover{border-color:var(--accent);color:var(--accent)}
@@ -314,12 +315,11 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
             <label>券商</label>
             <select id="t1-hq" style="min-width:160px"></select>
           </div>
+          <!-- FIX 2: 分點改用 datalist 模糊搜尋，不另開一個搜尋框 -->
           <div class="ctrl-group">
             <label>分點</label>
-            <div style="display:flex;gap:4px;align-items:center">
-              <input type="text" id="t1-br-filter" placeholder="🔍 搜尋..." style="width:100px;padding:7px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem" oninput="filterBrSelect('t1-br','t1-br-filter')">
-              <select id="t1-br" style="flex:1;min-width:140px"></select>
-            </div>
+            <input type="text" id="t1-br" list="t1-br-list" placeholder="🔍 搜尋分點..." style="min-width:180px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.88rem">
+            <datalist id="t1-br-list"></datalist>
           </div>
           <div class="ctrl-group">
             <label>起始</label>
@@ -408,12 +408,11 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
             <label>地緣關鍵字</label>
             <select id="t3-loc" style="min-width:120px"></select>
           </div>
+          <!-- FIX 3: 特定分點改用 datalist 模糊搜尋 -->
           <div class="ctrl-group">
             <label>特定分點</label>
-            <div style="display:flex;gap:4px;align-items:center">
-              <input type="text" id="t3-br-filter" placeholder="🔍 搜尋..." style="width:100px;padding:7px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.85rem" oninput="filterBrSelect('t3-br','t3-br-filter')">
-              <select id="t3-br" style="flex:1;min-width:140px"></select>
-            </div>
+            <input type="text" id="t3-br" list="t3-br-list" placeholder="🔍 搜尋分點..." style="min-width:180px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.88rem">
+            <datalist id="t3-br-list"></datalist>
           </div>
           <div class="ctrl-group">
             <label>起始</label>
@@ -742,20 +741,7 @@ async function initApp(){
 // ══════════════════════════════════════
 // BROKER SELECTS
 // ══════════════════════════════════════
-// 分點搜尋過濾
-function filterBrSelect(selId, filterId){
-  const q=$ById(filterId).value.toLowerCase();
-  const sel=$ById(selId);
-  const opts=[...sel.options];
-  opts.forEach(o=>{ o.hidden=q?!o.value.toLowerCase().includes(q):false; });
-  // 若目前選的被隱藏，選第一個可見的
-  if(sel.options[sel.selectedIndex]?.hidden){
-    const first=opts.find(o=>!o.hidden);
-    if(first) sel.value=first.value;
-  }
-}
-function $ById(id){ return document.getElementById(id); }
-
+// FIX 2b: buildT1Selects — 改用 datalist 而非 select
 function buildT1Selects(){
   const hqSel = $('t1-hq');
   hqSel.innerHTML='';
@@ -763,15 +749,21 @@ function buildT1Selects(){
     hqSel.appendChild(el('option',{value:hq,text:hq}));
   });
   hqSel.onchange = ()=>{
-    const br = $('t1-br');
-    br.innerHTML='';
+    const list = $('t1-br-list');
+    if(!list) return;
+    list.innerHTML='';
     const branches = brokerTree[hqSel.value]?.branches||[];
-    [...branches].sort().forEach(b=>br.appendChild(el('option',{value:b,text:b})));
-    if($('t1-br-filter')) $('t1-br-filter').value='';
+    [...branches].sort().forEach(b=>{
+      const opt=document.createElement('option'); opt.value=b; list.appendChild(opt);
+    });
+    // 預設選第一個分點
+    if(branches.length>0) $('t1-br').value=[...branches].sort()[0];
+    else $('t1-br').value='';
   };
   hqSel.dispatchEvent(new Event('change'));
 }
 
+// FIX 3b: buildT3Selects — 改用 datalist 而非 select
 function buildT3Selects(){
   const locSel = $('t3-loc');
   locSel.innerHTML='';
@@ -779,10 +771,15 @@ function buildT3Selects(){
     locSel.appendChild(el('option',{value:loc,text:loc}));
   });
   locSel.onchange = ()=>{
-    const br = $('t3-br');
-    br.innerHTML='';
-    (geoMap[locSel.value]||[]).sort().forEach(b=>br.appendChild(el('option',{value:b,text:b})));
-    if($('t3-br-filter')) $('t3-br-filter').value='';
+    const list = $('t3-br-list');
+    if(!list) return;
+    list.innerHTML='';
+    const branches = (geoMap[locSel.value]||[]).sort();
+    branches.forEach(b=>{
+      const opt=document.createElement('option'); opt.value=b; list.appendChild(opt);
+    });
+    if(branches.length>0) $('t3-br').value=branches[0];
+    else $('t3-br').value='';
   };
   locSel.dispatchEvent(new Event('change'));
 }
@@ -981,41 +978,6 @@ function switchToT4(sid, brName){
 
 $('t4-draw-btn').onclick = drawChart;
 
-async function fetchYahooKline(sid, startY) {
-  // 計算 range
-  const startDate = new Date(startY);
-  const now = new Date();
-  const diffYears = (now - startDate) / (1000 * 60 * 60 * 24 * 365);
-  const range = diffYears > 10 ? '20y' : diffYears > 5 ? '10y' : diffYears > 2 ? '5y' : '2y';
-
-  for (const suffix of ['.TW', '.TWO']) {
-    try {
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sid}${suffix}?range=${range}&interval=1d&includePrePost=false`;
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const json = await res.json();
-      const result = json?.chart?.result?.[0];
-      if (!result) continue;
-      const timestamps = result.timestamps || result.timestamp;
-      const quotes = result.indicators?.quote?.[0];
-      if (!timestamps || !quotes) continue;
-      const data = [];
-      for (let i = 0; i < timestamps.length; i++) {
-        const o = quotes.open?.[i], h = quotes.high?.[i];
-        const l = quotes.low?.[i],  c = quotes.close?.[i];
-        if (c == null || isNaN(c)) continue;
-        const d = new Date(timestamps[i] * 1000);
-        const dateStr = d.toISOString().split('T')[0];
-        data.push({ Date: dateStr, Open: o, High: h, Low: l, Close: c });
-      }
-      // 過濾 start 之後的資料
-      const filtered = data.filter(d => d.Date >= startY);
-      if (filtered.length > 0) return { data: filtered };
-    } catch(e) { continue; }
-  }
-  throw new Error(`找不到 ${sid} 的K線資料`);
-}
-
 async function drawChart(){
   const sid    = $('t4-sid').value.trim().toUpperCase();
   const brName = $('t4-br').value.trim();
@@ -1049,6 +1011,8 @@ async function drawChart(){
     const sid_ = sid;
     const fetchedName = (histRes?.stock_name) || klineRes.stock_name || '';
     if(fetchedName && histRes?.stock_name) lastStockName[sid_] = histRes.stock_name;
+    // 也嘗試從 klineRes 補快取
+    if(fetchedName && !lastStockName[sid_]) lastStockName[sid_] = fetchedName;
     const stockName = lastStockName[sid_] || fetchedName;
     const volMap = {};
     if(histRes) (histRes.records||[]).forEach(r=>{ volMap[r.Date]=r['買賣超']; });
@@ -1321,8 +1285,6 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
     `;
   }
 
-  // 預設隱藏，等用戶點選才顯示
-
   // 預設隱藏 legend
   legend.style.display='none';
 
@@ -1451,11 +1413,13 @@ $('wg-clear-btn').onclick=async()=>{
   renderWorkingGroup();
 };
 
+// FIX 1: 加入最愛時帶入 lastStockName 快取的中文股名
 $('t4-fav-btn').onclick=async()=>{
   const sid=$('t4-sid').value.trim().toUpperCase();
   const brName=$('t4-br').value;
+  const sname=lastStockName[sid]||'';
   if(!watchlist.find(w=>w['股票代號']===sid&&w['追蹤分點']===brName)){
-    watchlist.push({'股票代號':sid,'股票名稱':'','追蹤分點':brName,'筆記':''});
+    watchlist.push({'股票代號':sid,'股票名稱':sname,'追蹤分點':brName,'筆記':''});
     await saveWatchlist();
     renderWatchlist();
     showStatus('t4-status','✅ 已存入最愛清單','success');
@@ -1656,7 +1620,7 @@ function renderVipTable(){
   tbl.appendChild(tbody);
   wrap.innerHTML='';
   wrap.appendChild(topBar);
-  // 固定高度捲動區 - 桌面版填滿，手機版固定高度
+  // FIX 4: 固定高度捲動區，sticky thead 生效需要 overflow-y:auto 在父容器
   const scrollWrap=document.createElement('div');
   const isDesktop = window.innerWidth > 768;
   scrollWrap.className='vip-scroll-wrap';
@@ -1819,7 +1783,7 @@ async function mobileApplyVipFilter(){
   });
   tbl.appendChild(tbody);
 
-  // 固定高度捲動
+  // FIX 4: 固定高度捲動，sticky thead 生效
   const scrollWrap=document.createElement('div');
   scrollWrap.style.cssText='max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:6px';
   scrollWrap.appendChild(tbl);
