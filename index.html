@@ -986,9 +986,9 @@ async function drawChart(){
   const days   = parseInt($('t4-days').value)||300;
   const startY = $('t4-start').value;
 
-  // 決定傳給後端的 interval
-  const intervalMap = {'60m':'60m','D':'1d','W':'1wk','M':'1mo'};
-  const apiInterval = intervalMap[periodVal] || '1d';
+  // 60分鐘用 60m，其餘一律用日線拉，前端再 resample
+  // 這樣 broker_history（永遠是日線日期）才能對得上 volMap
+  const apiInterval = periodVal === '60m' ? '60m' : '1d';
 
   // 空分點 → 只畫K線，不查券商買賣超
   const needBroker = brName && brInfo;
