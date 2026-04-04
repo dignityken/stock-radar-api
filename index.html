@@ -1009,11 +1009,9 @@ async function drawChart(){
     const kdata = klineRes.data || [];
     // 優先用券商歷史的中文股名，快取起來，60m 無分點時沿用快取
     const sid_ = sid;
-    const fetchedName = (histRes?.stock_name) || klineRes.stock_name || '';
-    if(fetchedName && histRes?.stock_name) lastStockName[sid_] = histRes.stock_name;
-    // 也嘗試從 klineRes 補快取
-    if(fetchedName && !lastStockName[sid_]) lastStockName[sid_] = fetchedName;
-    const stockName = lastStockName[sid_] || fetchedName;
+    // 只有券商歷史回傳的才是中文名，klineRes 可能是英文，不存入快取
+    if(histRes?.stock_name) lastStockName[sid_] = histRes.stock_name;
+    const stockName = lastStockName[sid_] || klineRes.stock_name || '';
     const volMap = {};
     if(histRes) (histRes.records||[]).forEach(r=>{ volMap[r.Date]=r['買賣超']; });
     const is60m = (periodVal === '60m');
