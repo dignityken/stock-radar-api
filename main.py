@@ -161,7 +161,7 @@ def sheets_save(sheet_name: str, username: str, data: list) -> bool:
 # ==========================================
 def _download_drive(url: str) -> Optional[str]:
     file_id = url.split("/")[-2]
-    dl_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    dl_url = f"https://drive.google.com/uc?export=download&id={file_id}&t={int(time.time())}"
     try:
         r = requests.get(dl_url, stream=True, verify=False, timeout=15)
         r.raise_for_status()
@@ -600,7 +600,32 @@ async def warmup_cache():
         except Exception as e:
             print(f"[warmup] failed: {e}")
     asyncio.create_task(_warm())
-
+# ==========================================
+# 管理員功能：一鍵重新載入券商清單
+# ==========================================
+@app.get("/api/admin/reload_brokers")
+def reload_brokers():
+    """手動觸發重新下載 Google Drive 券商資料，免重啟伺服器"""
+    global _HQ_DATA, _RAW_BRANCH, UI_TREE, BROKER_MAP, GEO_MAP
+    print("手動重新載入券商資料庫...")
+    
+    _HQ_DATA = _load_hq()
+    _RAW_BRANCH = _load_branches()
+    UI_TREE, BROKER_MAP = _build_broker_db(_RAW_BRANCH, _HQ_DATA)
+    
+    # 重新整理地緣券商
+    new_geo_map = {}
+    for br_name, br_info in BROKER_MAP.items():
+        if "-" in br_name:
+            loc = br_name.split("-")[-1].replace("(停)", "").strip()
+            if loc:
+                if loc not in new_geo_map: new_geo_map[loc] = {}
+                new_geo_map[loc][br_name] = br_info
+    GEO_MAP = new_geo_map
+    
+    msg = f"更新成功！最新分點數量：{len(BROKER_MAP)} 個"
+    print(msg)
+    return {"status": "ok", "message": msg, "total_branches": len(BROKER_MAP)}
 @app.get("/")
 def root():
     return {"app": "stock-radar API", "version": "2.0"}
