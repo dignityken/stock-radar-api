@@ -640,74 +640,72 @@ _YOY_CACHE_TTL = 3600  # 1小時
 def get_yoy_twii():
     """
     計算台股加權指數各週期 YoY 年率
-    同時回傳歷史序列供前端畫圖
+    回傳歷史序列供前端多線圖使用
     """
     now_ts = datetime.datetime.now().timestamp()
     cached = _yoy_cache.get("twii")
     if cached and (now_ts - cached["ts"]) < _YOY_CACHE_TTL:
         return cached["data"]
 
-    # ── 下載資料 ──────────────────────────────────────
+    # ── 下載資料（明確指定 start 日期，避免 period 限制）──
+    START_LONG  = "1990-01-01"   # 月線/年線：抓最完整歷史
+    START_MID   = "2015-01-01"   # 週線：10年足夠
+    START_SHORT = "2020-01-01"   # 日線：5年，YoY 可看到4年走勢
+
     try:
-        # 月線：抓最大期間，確保有足夠歷史
-        mo = yf.download("^TWII", period="max", interval="1mo",
+        mo = yf.download("^TWII", start=START_LONG,  interval="1mo",
                          progress=False, auto_adjust=True)
-        # 週線：3年
-        wk = yf.download("^TWII", period="3y", interval="1wk",
+        wk = yf.download("^TWII", start=START_MID,   interval="1wk",
                          progress=False, auto_adjust=True)
-        # 日線：3年（日/60分鐘週期都用日線計算，60m 歷史太短）
-        dy = yf.download("^TWII", period="3y", interval="1d",
+        dy = yf.download("^TWII", start=START_SHORT,  interval="1d",
                          progress=False, auto_adjust=True)
     except Exception as e:
         raise HTTPException(500, f"yfinance 下載失敗：{e}")
 
-    # ── 工具函數 ──────────────────────────────────────
-    def safe_float(v):
-        try:
-            f = float(v)
-            return None if (_math.isnan(f) or _math.isinf(f)) else f
-        except Exception:
-            return None
-
-    def get_close_series(df):
-        """取得 Close Series，處理 MultiIndex"""
+    # ── 工具 ──────────────────────────────────────────────
+    def get_close(df):
         if df is None or df.empty:
             return None
         try:
-            close = df["Close"] if "Close" in df.columns else df.iloc[:, 0]
-            if isinstance(close, pd.DataFrame):
-                close = close.iloc[:, 0]
-            return close.dropna()
+            c = df["Close"] if "Close" in df.columns else df.iloc[:, 0]
+            if isinstance(c, pd.DataFrame):
+                c = c.iloc[:, 0]
+            return c.dropna()
         except Exception:
             return None
 
-    def resample_avg(series, freq):
-        """resample 成均值 dict {key: avg}"""
+    def safe_f(v):
+        try:
+            f = float(v)
+            return None if (_math.isnan(f) or _math.isinf(f)) else round(f, 2)
+        except Exception:
+            return None
+
+    def resample_to_dict(series, freq):
+        """resample → {key_str: avg_close}"""
         if series is None or series.empty:
             return {}
         try:
-            resampled = series.resample(freq).mean().dropna()
+            rs = series.resample(freq).mean().dropna()
         except Exception:
             return {}
         out = {}
-        for ts, val in resampled.items():
-            v = safe_float(val)
+        for ts, val in rs.items():
+            v = safe_f(val)
             if v is None:
                 continue
-            if freq in ("YE", "Y", "A", "YS", "AS"):
+            if freq in ("YE", "Y", "A", "AS", "YS"):
                 k = str(ts.year)
             elif freq in ("ME", "M", "MS"):
                 k = ts.strftime("%Y-%m")
-            elif freq in ("W-FRI", "W-SUN", "W"):
+            elif "W" in freq:
                 k = ts.strftime("%Y-W%W")
-            elif freq == "D":
-                k = ts.strftime("%Y-%m-%d")
             else:
-                k = ts.strftime("%Y-%m-%dT%H")
+                k = ts.strftime("%Y-%m-%d")
             out[k] = v
         return out
 
-    def prev_key(k, unit):
+    def prev_key_of(k, unit):
         try:
             if unit == "year":
                 return str(int(k) - 1)
@@ -720,46 +718,38 @@ def get_yoy_twii():
             if unit == "day":
                 dt = datetime.datetime.strptime(k, "%Y-%m-%d")
                 return (dt - datetime.timedelta(days=365)).strftime("%Y-%m-%d")
-            if unit == "hour":
-                dt = datetime.datetime.strptime(k, "%Y-%m-%dT%H")
-                return (dt - datetime.timedelta(days=365)).strftime("%Y-%m-%dT%H")
         except Exception:
             return None
-        return k
 
-    def fuzzy_prev(avg_map, pk):
+    def find_prev(avg_map, pk):
         if pk is None:
             return None
         if pk in avg_map:
             return avg_map[pk]
-        # 同月份最近的 key
+        # 找同月份最近 key
         prefix = pk[:7]
-        for k, v in sorted(avg_map.items()):
+        for k in sorted(avg_map.keys()):
             if k.startswith(prefix):
-                return v
+                return avg_map[k]
         return None
 
-    def calc_yoy_series(avg_map, unit):
-        """
-        計算所有時間點的歷史 YoY 序列
-        回傳 list of {key, cur, prev, yoy}，時間由舊到新
-        """
-        series = []
+    def build_yoy_series(avg_map, unit):
+        """回傳完整歷史 [{key, cur, prev, yoy}, ...]，時間由舊到新"""
+        out = []
         for k in sorted(avg_map.keys()):
-            pk = prev_key(k, unit)
-            pv = fuzzy_prev(avg_map, pk)
+            pk = prev_key_of(k, unit)
+            pv = find_prev(avg_map, pk)
             cv = avg_map[k]
             if pv and cv:
-                yoy = (cv / pv - 1) * 100
-                series.append({
+                out.append({
                     "key": k,
                     "cur": round(cv, 2),
                     "prev": round(pv, 2),
-                    "yoy": round(yoy, 2),
+                    "yoy": round((cv / pv - 1) * 100, 2),
                 })
-        return series
+        return out
 
-    def _signal(yoy):
+    def signal_of(yoy):
         if yoy is None: return "—"
         if yoy > 20:  return "過熱謹慎"
         if yoy > 10:  return "動能強"
@@ -769,61 +759,83 @@ def get_yoy_twii():
         if yoy > -20: return "動能弱"
         return "極度超賣"
 
-    # ── 各週期 series ──────────────────────────────────
-    mo_close = get_close_series(mo)
-    wk_close = get_close_series(wk)
-    dy_close  = get_close_series(dy)
+    # ── 建立各週期 ────────────────────────────────────────
+    mo_cl = get_close(mo)
+    wk_cl = get_close(wk)
+    dy_cl = get_close(dy)
 
-    year_map  = resample_avg(mo_close, "YE")
-    month_map = resample_avg(mo_close, "ME")
-    week_map  = resample_avg(wk_close, "W-FRI")
-    day_map   = resample_avg(dy_close, "D")
-    # 60分鐘用日線替代（key 格式保持一致，label 前端顯示「60分鐘(日線)」）
-    hour_map  = resample_avg(dy_close, "D")
+    year_map  = resample_to_dict(mo_cl, "YE")
+    month_map = resample_to_dict(mo_cl, "ME")
+    week_map  = resample_to_dict(wk_cl, "W-FRI")
+    day_map   = resample_to_dict(dy_cl, "D")
 
-    year_series  = calc_yoy_series(year_map,  "year")
-    month_series = calc_yoy_series(month_map, "month")
-    week_series  = calc_yoy_series(week_map,  "week")
-    day_series   = calc_yoy_series(day_map,   "day")
-    hour_series  = calc_yoy_series(hour_map,  "day")
+    year_series  = build_yoy_series(year_map,  "year")
+    month_series = build_yoy_series(month_map, "month")
+    week_series  = build_yoy_series(week_map,  "week")
+    day_series   = build_yoy_series(day_map,   "day")
 
-    def latest(series):
+    def latest_info(series):
         if not series:
             return None
         d = series[-1]
-        return {**d, "signal": _signal(d["yoy"])}
+        return {**d, "signal": signal_of(d["yoy"])}
 
-    periods = [
-        {"id": "yearly",  "label": "年",       "data": latest(year_series),  "history": year_series},
-        {"id": "monthly", "label": "月",       "data": latest(month_series), "history": month_series},
-        {"id": "weekly",  "label": "週",       "data": latest(week_series),  "history": week_series},
-        {"id": "daily",   "label": "日",       "data": latest(day_series),   "history": day_series},
-        {"id": "hourly",  "label": "60分鐘",   "data": latest(hour_series),  "history": hour_series[-90:]},  # 只傳最近90筆
-    ]
-
-    # ── 最新收盤 ──────────────────────────────────────
+    # ── 最新收盤 ──────────────────────────────────────────
     latest_price = latest_change = latest_pct = None
     try:
-        closes = dy_close
-        if closes is not None and len(closes) >= 2:
-            latest_price  = round(float(closes.iloc[-1]), 2)
-            prev_price    = round(float(closes.iloc[-2]), 2)
+        if dy_cl is not None and len(dy_cl) >= 2:
+            latest_price  = round(float(dy_cl.iloc[-1]), 2)
+            prev_price    = round(float(dy_cl.iloc[-2]), 2)
             latest_change = round(latest_price - prev_price, 2)
-            latest_pct    = round((latest_change / prev_price) * 100, 2)
+            latest_pct    = round(latest_change / prev_price * 100, 2)
     except Exception:
         pass
 
-    # ── 共識 ──────────────────────────────────────────
-    yoys = [p["data"]["yoy"] for p in periods if p["data"]]
-    pos = sum(1 for v in yoys if v > 1)
-    neg = sum(1 for v in yoys if v < -1)
-    total = len(yoys)
+    # ── 共識（週+日為主要訊號）────────────────────────────
+    all_yoys = []
+    for s in [year_series, month_series, week_series, day_series]:
+        if s:
+            all_yoys.append(s[-1]["yoy"])
+
+    pos   = sum(1 for v in all_yoys if v > 1)
+    neg   = sum(1 for v in all_yoys if v < -1)
+    total = len(all_yoys)
     if total and pos >= round(total * 0.7):
         consensus = "多頭"
     elif total and neg >= round(total * 0.7):
         consensus = "空頭"
     else:
         consensus = "分歧"
+
+    # ── 組裝回傳 ─────────────────────────────────────────
+    # history 傳完整序列（月線從1990起，資料量不大）
+    # 日線傳最近 500 筆即可
+    periods = [
+        {
+            "id": "yearly",
+            "label": "年",
+            "data": latest_info(year_series),
+            "history": year_series,               # 幾十個點，全傳
+        },
+        {
+            "id": "monthly",
+            "label": "月",
+            "data": latest_info(month_series),
+            "history": month_series,               # 幾百個點，全傳
+        },
+        {
+            "id": "weekly",
+            "label": "週",
+            "data": latest_info(week_series),
+            "history": week_series[-520:],         # 最近10年
+        },
+        {
+            "id": "daily",
+            "label": "日",
+            "data": latest_info(day_series),
+            "history": day_series[-1000:],         # 最近~4年
+        },
+    ]
 
     result = {
         "latest_price":  latest_price,
@@ -838,7 +850,7 @@ def get_yoy_twii():
     }
 
     _yoy_cache["twii"] = {"data": result, "ts": now_ts}
-    return result 
+    return result
 @app.get("/")
 def root():
     return {"app": "stock-radar API", "version": "2.0"}
