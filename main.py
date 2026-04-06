@@ -638,31 +638,18 @@ _YOY_CACHE_TTL = 3600  # 1小時
 
 @app.get("/api/yoy/twii")
 def get_yoy_twii():
-    """
-    計算台股加權指數各週期 YoY 年率
-    回傳歷史序列供前端多線圖使用
-    """
     now_ts = datetime.datetime.now().timestamp()
     cached = _yoy_cache.get("twii")
     if cached and (now_ts - cached["ts"]) < _YOY_CACHE_TTL:
         return cached["data"]
 
-    # ── 下載資料（明確指定 start 日期，避免 period 限制）──
-    START_LONG  = "1990-01-01"   # 月線/年線：抓最完整歷史
-    START_MID   = "2015-01-01"   # 週線：10年足夠
-    START_SHORT = "2020-01-01"   # 日線：5年，YoY 可看到4年走勢
+    def safe_f(v):
+        try:
+            f = float(v)
+            return None if (_math.isnan(f) or _math.isinf(f)) else f
+        except Exception:
+            return None
 
-    try:
-        mo = yf.download("^TWII", start=START_LONG,  interval="1mo",
-                         progress=False, auto_adjust=True)
-        wk = yf.download("^TWII", start=START_MID,   interval="1wk",
-                         progress=False, auto_adjust=True)
-        dy = yf.download("^TWII", start=START_SHORT,  interval="1d",
-                         progress=False, auto_adjust=True)
-    except Exception as e:
-        raise HTTPException(500, f"yfinance 下載失敗：{e}")
-
-    # ── 工具 ──────────────────────────────────────────────
     def get_close(df):
         if df is None or df.empty:
             return None
@@ -674,80 +661,23 @@ def get_yoy_twii():
         except Exception:
             return None
 
-    def safe_f(v):
+    def download_safe(symbol, **kwargs):
+        """下載資料，失敗回傳空 DataFrame"""
         try:
-            f = float(v)
-            return None if (_math.isnan(f) or _math.isinf(f)) else round(f, 2)
+            df = yf.download(symbol, progress=False, auto_adjust=True, **kwargs)
+            return df
         except Exception:
-            return None
+            return pd.DataFrame()
 
-    def resample_to_dict(series, freq):
-        """resample → {key_str: avg_close}"""
-        if series is None or series.empty:
-            return {}
-        try:
-            rs = series.resample(freq).mean().dropna()
-        except Exception:
-            return {}
-        out = {}
-        for ts, val in rs.items():
-            v = safe_f(val)
-            if v is None:
-                continue
-            if freq in ("YE", "Y", "A", "AS", "YS"):
-                k = str(ts.year)
-            elif freq in ("ME", "M", "MS"):
-                k = ts.strftime("%Y-%m")
-            elif "W" in freq:
-                k = ts.strftime("%Y-W%W")
-            else:
-                k = ts.strftime("%Y-%m-%d")
-            out[k] = v
-        return out
+    # ── 下載資料 ──────────────────────────────────────────
+    # 月線：用 period="max" 最穩定；interval 指定 1mo
+    mo = download_safe("^TWII", period="max",  interval="1mo")
+    wk = download_safe("^TWII", period="3y",   interval="1wk")
+    dy = download_safe("^TWII", period="3y",   interval="1d")
 
-    def prev_key_of(k, unit):
-        try:
-            if unit == "year":
-                return str(int(k) - 1)
-            if unit == "month":
-                y, m = k.split("-")
-                return f"{int(y)-1}-{m}"
-            if unit == "week":
-                y, w = k.split("-W")
-                return f"{int(y)-1}-W{w}"
-            if unit == "day":
-                dt = datetime.datetime.strptime(k, "%Y-%m-%d")
-                return (dt - datetime.timedelta(days=365)).strftime("%Y-%m-%d")
-        except Exception:
-            return None
-
-    def find_prev(avg_map, pk):
-        if pk is None:
-            return None
-        if pk in avg_map:
-            return avg_map[pk]
-        # 找同月份最近 key
-        prefix = pk[:7]
-        for k in sorted(avg_map.keys()):
-            if k.startswith(prefix):
-                return avg_map[k]
-        return None
-
-    def build_yoy_series(avg_map, unit):
-        """回傳完整歷史 [{key, cur, prev, yoy}, ...]，時間由舊到新"""
-        out = []
-        for k in sorted(avg_map.keys()):
-            pk = prev_key_of(k, unit)
-            pv = find_prev(avg_map, pk)
-            cv = avg_map[k]
-            if pv and cv:
-                out.append({
-                    "key": k,
-                    "cur": round(cv, 2),
-                    "prev": round(pv, 2),
-                    "yoy": round((cv / pv - 1) * 100, 2),
-                })
-        return out
+    mo_cl = get_close(mo)
+    wk_cl = get_close(wk)
+    dy_cl = get_close(dy)
 
     def signal_of(yoy):
         if yoy is None: return "—"
@@ -759,28 +689,109 @@ def get_yoy_twii():
         if yoy > -20: return "動能弱"
         return "極度超賣"
 
-    # ── 建立各週期 ────────────────────────────────────────
-    mo_cl = get_close(mo)
-    wk_cl = get_close(wk)
-    dy_cl = get_close(dy)
+    def build_series(series_raw, unit):
+        """
+        從 pandas Series（index=DatetimeIndex, values=close）
+        直接計算 YoY，回傳 [{ts_ms, key, cur, prev, yoy}]
+        ts_ms: unix milliseconds，前端 x 軸直接用
+        unit: 'month' | 'week' | 'day'
+        """
+        if series_raw is None or series_raw.empty:
+            return []
 
-    year_map  = resample_to_dict(mo_cl, "YE")
-    month_map = resample_to_dict(mo_cl, "ME")
-    week_map  = resample_to_dict(wk_cl, "W-FRI")
-    day_map   = resample_to_dict(dy_cl, "D")
+        # resample 成對應週期均值
+        freq_map = {'month': 'ME', 'week': 'W-FRI', 'day': 'D'}
+        freq = freq_map.get(unit, 'D')
+        try:
+            resampled = series_raw.resample(freq).mean().dropna()
+        except Exception:
+            return []
 
-    year_series  = build_yoy_series(year_map,  "year")
-    month_series = build_yoy_series(month_map, "month")
-    week_series  = build_yoy_series(week_map,  "week")
-    day_series   = build_yoy_series(day_map,   "day")
+        # 轉成 list[(datetime, value)]
+        rows = [(ts.to_pydatetime(), safe_f(val))
+                for ts, val in resampled.items()
+                if safe_f(val) is not None]
 
-    def latest_info(series):
+        if not rows:
+            return []
+
+        # 建立時間→值對照
+        ts_val = {r[0]: r[1] for r in rows}
+
+        # 一年前的時間差
+        ONE_YEAR = datetime.timedelta(days=365)
+
+        result = []
+        for dt, cur in rows:
+            prev_dt = dt - ONE_YEAR
+            # 找最近的 prev（±45天內）
+            best_prev = None
+            best_diff = datetime.timedelta(days=46)
+            for candidate_dt, candidate_val in ts_val.items():
+                diff = abs(candidate_dt - prev_dt)
+                if diff < best_diff:
+                    best_diff = diff
+                    best_prev = candidate_val
+            if best_prev is None:
+                continue
+            yoy = round((cur / best_prev - 1) * 100, 2)
+            ts_ms = int(dt.timestamp() * 1000)  # 前端用 unix ms
+            if unit == 'month':
+                key = dt.strftime("%Y-%m")
+            elif unit == 'week':
+                key = dt.strftime("%Y-W%W")
+            else:
+                key = dt.strftime("%Y-%m-%d")
+            result.append({
+                "ts":   ts_ms,
+                "key":  key,
+                "cur":  round(cur, 2),
+                "prev": round(best_prev, 2),
+                "yoy":  yoy,
+            })
+        return result
+
+    # 月/週/日 series
+    month_series = build_series(mo_cl, 'month')
+    week_series  = build_series(wk_cl, 'week')
+    day_series   = build_series(dy_cl, 'day')
+
+    # 年 series：從月線 resample 成年均值再 YoY
+    def build_year_series(series_raw):
+        if series_raw is None or series_raw.empty:
+            return []
+        try:
+            yr = series_raw.resample('YE').mean().dropna()
+        except Exception:
+            return []
+        rows = [(ts.year, safe_f(val)) for ts, val in yr.items() if safe_f(val) is not None]
+        result = []
+        yr_map = {y: v for y, v in rows}
+        for y, cur in rows:
+            prev = yr_map.get(y - 1)
+            if prev is None:
+                continue
+            yoy = round((cur / prev - 1) * 100, 2)
+            # 用每年1月1日的 ms 當 x 座標
+            ts_ms = int(datetime.datetime(y, 7, 1).timestamp() * 1000)  # 年中點
+            result.append({
+                "ts":   ts_ms,
+                "key":  str(y),
+                "cur":  round(cur, 2),
+                "prev": round(prev, 2),
+                "yoy":  yoy,
+            })
+        return result
+
+    year_series = build_year_series(mo_cl)
+
+    def latest(series):
         if not series:
             return None
         d = series[-1]
         return {**d, "signal": signal_of(d["yoy"])}
 
-    # ── 最新收盤 ──────────────────────────────────────────
+    # 最新收盤
     latest_price = latest_change = latest_pct = None
     try:
         if dy_cl is not None and len(dy_cl) >= 2:
@@ -791,50 +802,19 @@ def get_yoy_twii():
     except Exception:
         pass
 
-    # ── 共識（週+日為主要訊號）────────────────────────────
-    all_yoys = []
-    for s in [year_series, month_series, week_series, day_series]:
-        if s:
-            all_yoys.append(s[-1]["yoy"])
-
+    # 共識
+    all_yoys = [s[-1]["yoy"] for s in [year_series, month_series, week_series, day_series] if s]
     pos   = sum(1 for v in all_yoys if v > 1)
     neg   = sum(1 for v in all_yoys if v < -1)
     total = len(all_yoys)
-    if total and pos >= round(total * 0.7):
-        consensus = "多頭"
-    elif total and neg >= round(total * 0.7):
-        consensus = "空頭"
-    else:
-        consensus = "分歧"
+    consensus = "多頭" if total and pos >= round(total*0.7) else "空頭" if total and neg >= round(total*0.7) else "分歧"
 
-    # ── 組裝回傳 ─────────────────────────────────────────
-    # history 傳完整序列（月線從1990起，資料量不大）
-    # 日線傳最近 500 筆即可
+    # 傳完整 history 供前端畫圖
     periods = [
-        {
-            "id": "yearly",
-            "label": "年",
-            "data": latest_info(year_series),
-            "history": year_series,               # 幾十個點，全傳
-        },
-        {
-            "id": "monthly",
-            "label": "月",
-            "data": latest_info(month_series),
-            "history": month_series,               # 幾百個點，全傳
-        },
-        {
-            "id": "weekly",
-            "label": "週",
-            "data": latest_info(week_series),
-            "history": week_series[-520:],         # 最近10年
-        },
-        {
-            "id": "daily",
-            "label": "日",
-            "data": latest_info(day_series),
-            "history": day_series[-1000:],         # 最近~4年
-        },
+        {"id": "yearly",  "label": "年",  "data": latest(year_series),  "history": year_series},
+        {"id": "monthly", "label": "月",  "data": latest(month_series), "history": month_series},
+        {"id": "weekly",  "label": "週",  "data": latest(week_series),  "history": week_series},
+        {"id": "daily",   "label": "日",  "data": latest(day_series),   "history": day_series[-500:]},
     ]
 
     result = {
@@ -848,7 +828,6 @@ def get_yoy_twii():
         "periods":       periods,
         "updated_at":    datetime.datetime.now().isoformat(),
     }
-
     _yoy_cache["twii"] = {"data": result, "ts": now_ts}
     return result
 @app.get("/")
