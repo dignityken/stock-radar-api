@@ -626,6 +626,215 @@ def reload_brokers():
     msg = f"更新成功！最新分點數量：{len(BROKER_MAP)} 個"
     print(msg)
     return {"status": "ok", "message": msg, "total_branches": len(BROKER_MAP)}
+# ==========================================
+# TAB5：TWSE YoY 年率分析
+# 加在 main.py 最後面（@app.get("/") 之前）
+# ==========================================
+
+import math as _math
+
+_yoy_cache: dict = {}
+_YOY_CACHE_TTL = 3600  # 1小時更新一次（非即時）
+
+@app.get("/api/yoy/twii")
+def get_yoy_twii():
+    """
+    計算台股加權指數各週期 YoY 年率
+    週期：年 / 月 / 週 / 日 / 60分鐘
+    資料來源：Yahoo Finance ^TWII
+    """
+    now_ts = datetime.datetime.now().timestamp()
+    cached = _yoy_cache.get("twii")
+    if cached and (now_ts - cached["ts"]) < _YOY_CACHE_TTL:
+        return cached["data"]
+
+    result = {}
+
+    # ── 抓資料 ──────────────────────────────────────
+    try:
+        # 月線 10年（供年/月週期用）
+        mo = yf.download("^TWII", period="10y", interval="1mo", progress=False, auto_adjust=True)
+        # 週線 3年
+        wk = yf.download("^TWII", period="3y",  interval="1wk", progress=False, auto_adjust=True)
+        # 日線 3年
+        dy = yf.download("^TWII", period="3y",  interval="1d",  progress=False, auto_adjust=True)
+        # 60分鐘 60天（Yahoo 60m 限制）
+        hr = yf.download("^TWII", period="60d", interval="60m", progress=False, auto_adjust=True)
+    except Exception as e:
+        raise HTTPException(500, f"yfinance 下載失敗：{e}")
+
+    # ── 工具函數 ──────────────────────────────────────
+    def safe_float(v):
+        try:
+            f = float(v)
+            return None if (_math.isnan(f) or _math.isinf(f)) else f
+        except Exception:
+            return None
+
+    def group_avg(df, freq):
+        """
+        df: yfinance DataFrame (index=DatetimeIndex, Close 欄)
+        freq: 'YE'/'ME'/'W'/'D'/'h' (pandas resample freq)
+        回傳 {key_str: avg_close}
+        """
+        if df.empty:
+            return {}
+        # 處理 MultiIndex columns（yfinance multi-ticker 會有）
+        close = df["Close"] if "Close" in df.columns else df.iloc[:, 0]
+        # 若是 DataFrame 降成 Series
+        if isinstance(close, pd.DataFrame):
+            close = close.iloc[:, 0]
+        close = close.dropna()
+        resampled = close.resample(freq).mean().dropna()
+        out = {}
+        for ts, val in resampled.items():
+            v = safe_float(val)
+            if v is None:
+                continue
+            # 產生 key
+            if freq in ("YE", "Y", "A", "YS"):
+                k = str(ts.year)
+            elif freq in ("ME", "M", "MS"):
+                k = ts.strftime("%Y-%m")
+            elif freq in ("W", "W-SUN", "W-FRI"):
+                k = ts.strftime("%Y-W%W")
+            elif freq == "D":
+                k = ts.strftime("%Y-%m-%d")
+            else:  # hourly
+                k = ts.strftime("%Y-%m-%dT%H")
+            out[k] = v
+        return out
+
+    def prev_key(k, unit):
+        """給定 key，回傳一年前對應的 key"""
+        if unit == "year":
+            return str(int(k) - 1)
+        if unit == "month":
+            y, m = k.split("-")
+            return f"{int(y)-1}-{m}"
+        if unit == "week":
+            y, w = k.split("-W")
+            return f"{int(y)-1}-W{w}"
+        if unit == "day":
+            dt = datetime.datetime.strptime(k, "%Y-%m-%d")
+            dt2 = dt.replace(year=dt.year - 1)
+            return dt2.strftime("%Y-%m-%d")
+        if unit == "hour":
+            dt = datetime.datetime.strptime(k, "%Y-%m-%dT%H")
+            dt2 = dt.replace(year=dt.year - 1)
+            return dt2.strftime("%Y-%m-%dT%H")
+        return k
+
+    def fuzzy_prev(avg_map, pk, unit):
+        """找不到精確 prev_key 時，嘗試找同月份最近的 key"""
+        if pk in avg_map:
+            return avg_map[pk]
+        prefix = pk[:7]  # YYYY-MM
+        for k, v in avg_map.items():
+            if k.startswith(prefix):
+                return v
+        return None
+
+    def calc_yoy(avg_map, unit):
+        """
+        計算所有時間點的 YoY，回傳最新一筆
+        {cur_avg, prev_avg, yoy_pct, key, prev_key}
+        """
+        keys = sorted(avg_map.keys(), reverse=True)
+        for k in keys:
+            pk = prev_key(k, unit)
+            pv = fuzzy_prev(avg_map, pk, unit)
+            if pv and avg_map[k]:
+                yoy = (avg_map[k] / pv - 1) * 100
+                return {
+                    "key": k,
+                    "prev_key": pk,
+                    "cur_avg": round(avg_map[k], 2),
+                    "prev_avg": round(pv, 2),
+                    "yoy_pct": round(yoy, 2),
+                    "signal": _signal(yoy),
+                }
+        return None
+
+    def _signal(yoy):
+        if yoy is None: return "—"
+        if yoy > 20:  return "過熱謹慎"
+        if yoy > 10:  return "動能強"
+        if yoy > 2:   return "偏多"
+        if yoy > -2:  return "中性"
+        if yoy > -10: return "偏空"
+        if yoy > -20: return "動能弱"
+        return "極度超賣"
+
+    # ── 計算各週期 ──────────────────────────────────────
+    periods = [
+        ("yearly",  mo, "YE",     "year"),
+        ("monthly", mo, "ME",     "month"),
+        ("weekly",  wk, "W-FRI",  "week"),
+        ("daily",   dy, "D",      "day"),
+        ("hourly",  hr, "h",      "hour"),
+    ]
+    labels = {
+        "yearly":  "年",
+        "monthly": "月",
+        "weekly":  "週",
+        "daily":   "日",
+        "hourly":  "60分鐘",
+    }
+
+    period_results = []
+    for pid, df, freq, unit in periods:
+        avg_map = group_avg(df, freq)
+        yoy_data = calc_yoy(avg_map, unit)
+        period_results.append({
+            "id": pid,
+            "label": labels[pid],
+            "data": yoy_data,
+        })
+
+    # ── 最新收盤價 ──────────────────────────────────────
+    latest_price = None
+    latest_change = None
+    latest_pct = None
+    try:
+        close_col = dy["Close"] if "Close" in dy.columns else dy.iloc[:, 0]
+        if isinstance(close_col, pd.DataFrame):
+            close_col = close_col.iloc[:, 0]
+        closes = close_col.dropna()
+        if len(closes) >= 2:
+            latest_price = round(float(closes.iloc[-1]), 2)
+            prev_price   = round(float(closes.iloc[-2]), 2)
+            latest_change = round(latest_price - prev_price, 2)
+            latest_pct    = round((latest_change / prev_price) * 100, 2)
+    except Exception:
+        pass
+
+    # ── 共識判斷 ──────────────────────────────────────
+    yoys = [p["data"]["yoy_pct"] for p in period_results if p["data"]]
+    pos = sum(1 for v in yoys if v > 1)
+    neg = sum(1 for v in yoys if v < -1)
+    total = len(yoys)
+    if total and pos >= round(total * 0.7):
+        consensus = "多頭"
+    elif total and neg >= round(total * 0.7):
+        consensus = "空頭"
+    else:
+        consensus = "分歧"
+
+    data = {
+        "latest_price":  latest_price,
+        "latest_change": latest_change,
+        "latest_pct":    latest_pct,
+        "consensus":     consensus,
+        "pos_count":     pos,
+        "neg_count":     neg,
+        "total_count":   total,
+        "periods":       period_results,
+        "updated_at":    datetime.datetime.now().isoformat(),
+    }
+
+    _yoy_cache["twii"] = {"data": data, "ts": now_ts}
+    return data    
 @app.get("/")
 def root():
     return {"app": "stock-radar API", "version": "2.0"}
