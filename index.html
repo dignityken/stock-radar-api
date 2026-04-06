@@ -55,7 +55,7 @@ button{cursor:pointer}
   #mobile-vip-panel{display:none!important}
 }
 
-/* Mobile layout - fixed topbar + scrollable body */
+/* Mobile layout */
 @media(max-width:768px){
   html,body{height:auto;overflow-y:auto}
   .app-layout{display:block}
@@ -66,14 +66,14 @@ button{cursor:pointer}
   .sidebar-header{padding:6px 10px;display:flex;align-items:center;gap:8px}
   .sidebar-user{font-size:.82rem;font-weight:600}
   .sidebar-role{font-size:.68rem;color:var(--text2)}
-  .sidebar-nav{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:4px 6px}
-  .nav-btn{display:block;width:100%;padding:6px 4px;font-size:.74rem;white-space:nowrap;background:transparent;border:none;border-radius:5px;color:var(--text2);text-align:center;overflow:hidden;text-overflow:ellipsis}
+  .sidebar-nav{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;padding:4px 6px}
+  .nav-btn{display:block;width:100%;padding:6px 4px;font-size:.7rem;white-space:nowrap;background:transparent;border:none;border-radius:5px;color:var(--text2);text-align:center;overflow:hidden;text-overflow:ellipsis}
   .nav-btn.active{background:var(--accent);color:#fff}
-  .sidebar-vip{display:none} /* 手機版VIP移到main content */
+  .sidebar-vip{display:none}
   .sidebar-logout{padding:4px 6px}
   .btn-logout{padding:5px 12px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text2)}
-  .main-content{padding:8px;padding-top:110px} /* JS動態調整 */
-  #mobile-vip-panel{display:block} /* 手機版VIP在main content */
+  .main-content{padding:8px;padding-top:110px}
+  #mobile-vip-panel{display:block}
   .login-box{width:92%;padding:24px 18px}
 }
 
@@ -155,16 +155,15 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 .vip-row{display:flex;justify-content:space-between;font-size:.74rem;color:var(--text2)}
 .vip-apply-btn{width:100%;padding:7px;background:var(--accent);color:#fff;border:none;border-radius:5px;font-size:.8rem;font-weight:600;margin-top:4px}
 .vip-table{width:100%;border-collapse:collapse;font-size:.74rem}
-/* FIX 4: Sticky thead for VIP table */
 .vip-table th{color:var(--text2);padding:4px;border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;z-index:10;background:var(--bg3)}
 .vip-table td{padding:4px;border-bottom:1px solid var(--border)}
 .vip-add-btn{width:100%;padding:6px;margin-top:6px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2);font-size:.75rem}
 .vip-add-btn:hover{border-color:var(--accent);color:var(--accent)}
 
-/* VIP Overlay（桌面版結果面板，覆蓋 main content） */
+/* VIP Overlay */
 #vip-overlay{
   display:none;position:fixed;top:0;bottom:0;
-  left:280px;right:0; /* sidebar 右側開始，覆蓋整個 main content */
+  left:280px;right:0;
   background:var(--bg);border-left:2px solid var(--accent);
   z-index:300;flex-direction:column;
   box-shadow:-4px 0 20px rgba(0,0,0,.4);
@@ -179,6 +178,10 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 @media(max-width:768px){#vip-overlay{display:none!important}}
 .note-input{background:transparent;border:none;color:var(--text);font-size:.83rem;width:100%;outline:none}
 .note-input:focus{border-bottom:1px solid var(--accent)}
+
+/* TAB5 YoY cards */
+.t5-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;transition:border-color .2s}
+.t5-card:hover{border-color:rgba(41,98,255,0.4)}
 </style>
 </head>
 <body>
@@ -216,6 +219,7 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
         <button class="nav-btn" data-tab="t2">📊 股票代號</button>
         <button class="nav-btn" data-tab="t3">📍 地緣券商</button>
         <button class="nav-btn" data-tab="t4">📈 K線圖</button>
+        <button class="nav-btn" data-tab="t5">📡 年率監控</button>
       </div>
       <!-- VIP 掃描清單 -->
       <div id="vip-panel" style="display:none" class="sidebar-vip">
@@ -277,7 +281,7 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
     <!-- MAIN -->
     <div class="main-content" id="main-content">
 
-      <!-- 手機版 VIP panel（桌面版隱藏，手機版顯示） -->
+      <!-- 手機版 VIP panel -->
       <div id="mobile-vip-panel" style="display:none;margin-bottom:10px">
         <details>
           <summary class="list-tab-summary">📡 VIP 掃描清單</summary>
@@ -315,7 +319,6 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
             <label>券商</label>
             <select id="t1-hq" style="min-width:160px"></select>
           </div>
-          <!-- FIX 2: 分點改用 datalist 模糊搜尋，不另開一個搜尋框 -->
           <div class="ctrl-group">
             <label>分點</label>
             <input type="text" id="t1-br" list="t1-br-list" placeholder="🔍 搜尋分點..." style="min-width:180px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.88rem">
@@ -408,7 +411,6 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
             <label>地緣關鍵字</label>
             <select id="t3-loc" style="min-width:120px"></select>
           </div>
-          <!-- FIX 3: 特定分點改用 datalist 模糊搜尋 -->
           <div class="ctrl-group">
             <label>特定分點</label>
             <input type="text" id="t3-br" list="t3-br-list" placeholder="🔍 搜尋分點..." style="min-width:180px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.88rem">
@@ -455,15 +457,11 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 
       <!-- TAB4: K線圖 -->
       <div id="tab-t4" style="display:none">
-        <!-- 控制列 -->
         <div class="chart-controls">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%">
-            <!-- 股票代號 + 快捷按鈕 -->
             <input type="text" id="t4-sid" value="6488" style="width:72px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
-            <!-- 分點（可選，指數/期貨不需要） -->
             <input type="text" id="t4-br" list="t4-br-list" placeholder="分點(可空白)" style="flex:1;min-width:100px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
             <datalist id="t4-br-list"></datalist>
-            <!-- 週期：新增60分鐘 -->
             <div class="radio-group" style="gap:3px">
               <input type="radio" name="t4-period" id="t4-60" value="60m"><label for="t4-60" style="padding:5px 9px;font-size:.8rem">60分</label>
               <input type="radio" name="t4-period" id="t4-d" value="D" checked><label for="t4-d" style="padding:5px 9px;font-size:.8rem">日</label>
@@ -484,7 +482,6 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
           </div>
         </div>
         <div id="t4-status"></div>
-        <!-- 最愛 / 工作組：預設收合 -->
         <details id="wl-details" style="margin-bottom:6px">
           <summary class="list-tab-summary">⭐ 最愛 <span id="wl-count">(0)</span></summary>
           <div id="wl-panel" style="padding:4px 0">
@@ -507,6 +504,60 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
         </div>
       </div>
 
+      <!-- TAB5: 年率監控 -->
+      <div id="tab-t5" style="display:none">
+        <div class="section-title">📡 年率監控 — TWSE 多週期 YoY</div>
+
+        <div style="background:rgba(41,98,255,0.07);border:1px solid rgba(41,98,255,0.2);border-radius:6px;padding:10px 14px;font-size:.82rem;color:var(--text2);margin-bottom:14px;line-height:1.9">
+          <b style="color:var(--accent)">年率公式：</b>（當期均值 ÷ 一年前同期均值 − 1）× 100　｜　
+          <b style="color:var(--accent)">訊號：</b>&gt;+20% 過熱謹慎　&gt;+10% 動能強　&gt;+2% 偏多　±2% 中性　&lt;−2% 偏空　&lt;−10% 動能弱
+          <br>資料由後端 yfinance 抓取，每小時 cache 一次。
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+          <button class="btn-search" id="t5-refresh-btn" style="padding:7px 18px">↻ 更新資料</button>
+          <span id="t5-updated" style="font-size:.78rem;color:var(--text2)">尚未載入</span>
+        </div>
+
+        <div id="t5-status"></div>
+
+        <!-- Hero -->
+        <div id="t5-hero" style="display:none;background:var(--bg2);border:1px solid var(--border);border-top:2px solid var(--accent);border-radius:8px;padding:18px 22px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:.72rem;color:var(--text2);letter-spacing:1px;margin-bottom:4px">TAIEX 加權指數</div>
+              <div id="t5-price" style="font-size:38px;font-weight:700;font-family:monospace;line-height:1">—</div>
+              <div id="t5-change" style="font-size:14px;font-family:monospace;margin-top:4px">—</div>
+            </div>
+            <div style="width:1px;height:48px;background:var(--border)"></div>
+            <div style="display:flex;gap:24px;flex-wrap:wrap">
+              <div>
+                <div style="font-size:.72rem;color:var(--text2);letter-spacing:1px;margin-bottom:3px">本月均值</div>
+                <div id="t5-ma" style="font-family:monospace;font-size:14px">—</div>
+              </div>
+              <div>
+                <div style="font-size:.72rem;color:var(--text2);letter-spacing:1px;margin-bottom:3px">去年同月均值</div>
+                <div id="t5-pa" style="font-family:monospace;font-size:14px">—</div>
+              </div>
+              <div>
+                <div style="font-size:.72rem;color:var(--text2);letter-spacing:1px;margin-bottom:3px">月 YoY</div>
+                <div id="t5-my" style="font-family:monospace;font-size:16px;font-weight:700">—</div>
+              </div>
+              <div>
+                <div style="font-size:.72rem;color:var(--text2);letter-spacing:1px;margin-bottom:3px">多週期共識</div>
+                <div id="t5-con" style="font-family:monospace;font-size:14px;font-weight:700">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Period cards -->
+        <div style="font-size:.75rem;letter-spacing:2px;color:var(--text2);margin-bottom:10px;text-transform:uppercase">各週期年率一覽</div>
+        <div id="t5-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:20px">
+          <div style="color:var(--text2);font-size:.82rem;padding:12px 0">按「更新資料」載入...</div>
+        </div>
+      </div>
+
     </div><!-- /main-content -->
   </div><!-- /app-layout -->
 </div><!-- /app -->
@@ -523,24 +574,23 @@ const API = 'https://stock-radar-api-ky4l.onrender.com';
 let token = localStorage.getItem('sr_token') || '';
 let username = localStorage.getItem('sr_username') || '';
 let userRole = localStorage.getItem('sr_role') || '';
-let brokerTree = {};   // {hq_name: {bid, branches:[...]}}
-let brokerMap = {};    // {br_name: {hq_id, br_id, hq_name}}
-let geoMap = {};       // {loc: [br_names]}
+let brokerTree = {};
+let brokerMap = {};
+let geoMap = {};
 let watchlist = [];
 let workingGroup = [];
 let vipScanData = [];
 let vipFiltered = [];
 let vipSelected = new Set();
-let vipAllSelected = false; // 全選狀態
+let vipAllSelected = false;
 let currentChart = null;
-let lastStockName = {}; // {sid: '中文名'} 快取
+let lastStockName = {};
 let currentTab = 't1';
 
 // ══════════════════════════════════════
 // UTILS
 // ══════════════════════════════════════
 const $ = id => document.getElementById(id);
-// el(tag, [attr], ...children) — attr 是可選的普通物件
 const el = (tag, ...args) => {
   const e = document.createElement(tag);
   const attr = (args[0] && typeof args[0]==='object' && !(args[0] instanceof Node)) ? args.shift() : {};
@@ -558,7 +608,6 @@ const el = (tag, ...args) => {
   });
   return e;
 };
-// 常用快捷
 const td = (...args) => el('td', ...args);
 const th = (text) => el('th', {text});
 const tr = (...tds) => { const r=el('tr'); tds.forEach(t=>r.appendChild(t)); return r; };
@@ -635,7 +684,6 @@ $('logout-btn').onclick = doLogout;
 // ══════════════════════════════════════
 async function initApp(){
   $('login-screen').style.display='none';
-  // 桌面版讓 CSS 控制 display（position:fixed flex），手機版設 block
   if(window.innerWidth <= 768){
     $('app').style.display='block';
   } else {
@@ -644,7 +692,6 @@ async function initApp(){
   $('sb-username').textContent = username;
   $('sb-role').textContent = userRole==='vip'?'⭐ VIP 會員':userRole==='admin'?'🔧 管理員':'👤 會員';
 
-  // 載入券商資料
   const mainContent = $('main-content');
   const loadingDiv = document.createElement('div');
   loadingDiv.id = 'broker-loading';
@@ -669,31 +716,26 @@ async function initApp(){
     loadingDiv.innerHTML = `⚠️ 伺服器連線失敗，請重新整理頁面再試。(${e.message})`;
   }
 
-  // 設預設日期
   ['t1','t2','t3'].forEach(t=>{
     $(t+'-sd').value = daysAgo(7);
     $(t+'-ed').value = today();
   });
 
-  // 載入最愛和工作組
   await loadWatchlist();
   await loadWorkingGroup();
   renderWatchlist();
   renderWorkingGroup();
 
-  // VIP
   if(userRole==='vip'){
     if(window.innerWidth > 768) $('vip-panel').style.display='block';
     initVipPanel();
   }
 
-  // 手機版：動態設定 main-content 的 padding-top = sidebar 高度
   function adjustMobilePadding(){
     if(window.innerWidth <= 768){
       const sb = document.querySelector('.sidebar');
       const mc = document.querySelector('.main-content');
       if(sb && mc) mc.style.paddingTop = (sb.offsetHeight + 8) + 'px';
-      // 手機版顯示 mobile VIP panel
       if(userRole==='vip'){
         $('mobile-vip-panel').style.display='block';
       }
@@ -707,12 +749,10 @@ async function initApp(){
   new ResizeObserver(adjustMobilePadding).observe(document.querySelector('.sidebar'));
   window.addEventListener('resize', adjustMobilePadding);
 
-  // 手機版 VIP panel 初始化（共用同一套 vipScanData，但有獨立的 DOM）
   if(userRole==='vip'){
     initMobileVipPanel();
   }
 
-  // VIP overlay 關閉按鈕
   const overlayCloseBtn=$('vip-overlay-close');
   if(overlayCloseBtn){
     overlayCloseBtn.onclick=()=>{
@@ -722,26 +762,27 @@ async function initApp(){
     };
   }
 
-  // Tab 切換
+  // Tab 切換 — 含 t5
   document.querySelectorAll('.nav-btn').forEach(btn=>{
     btn.onclick = ()=>{
       document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       const tab = btn.dataset.tab;
       currentTab = tab;
-      ['t1','t2','t3','t4'].forEach(t=>{
+      ['t1','t2','t3','t4','t5'].forEach(t=>{
         $('tab-'+t).style.display = t===tab?'':'none';
       });
+      // TAB5：切入時若尚未載入，自動觸發
+      if(tab==='t5' && $('t5-updated').textContent==='尚未載入'){
+        loadYoy();
+      }
     };
   });
-
-  // 最愛/工作組用 details 收合，不需要 JS 切換
 }
 
 // ══════════════════════════════════════
 // BROKER SELECTS
 // ══════════════════════════════════════
-// FIX 2b: buildT1Selects — 改用 datalist 而非 select
 function buildT1Selects(){
   const hqSel = $('t1-hq');
   hqSel.innerHTML='';
@@ -756,14 +797,12 @@ function buildT1Selects(){
     [...branches].sort().forEach(b=>{
       const opt=document.createElement('option'); opt.value=b; list.appendChild(opt);
     });
-    // 預設選第一個分點
     if(branches.length>0) $('t1-br').value=[...branches].sort()[0];
     else $('t1-br').value='';
   };
   hqSel.dispatchEvent(new Event('change'));
 }
 
-// FIX 3b: buildT3Selects — 改用 datalist 而非 select
 function buildT3Selects(){
   const locSel = $('t3-loc');
   locSel.innerHTML='';
@@ -795,7 +834,7 @@ function buildT4BrSelect(){
 }
 
 // ══════════════════════════════════════
-// TAB1 特定分點
+// TAB1
 // ══════════════════════════════════════
 $('t1-search-btn').onclick = async ()=>{
   const hqName = $('t1-hq').value;
@@ -846,9 +885,7 @@ function renderStockTable(wrapId, list, colB, colS, brName, brId, title, side){
   const tbody = el('tbody');
   list.forEach(row=>{
     const sid = String(row['股票代號']||'').trim();
-    // 股票名稱欄位可能包含代號+名稱，只取名稱部分
     let rawName = String(row['股票名稱']||'').trim();
-    // 若名稱開頭是代號，去掉代號只留名稱
     const sname = rawName.replace(/^\d+[A-Za-z]?\s*/, '').trim() || rawName;
     const kUrl = `https://fubon-ebrokerdj.fbs.com.tw/z/zc/zcw/zcw1_${sid}.djhtm`;
     const drawBtn = el('button',{class:'link-btn',text:'📊'});
@@ -868,7 +905,7 @@ function renderStockTable(wrapId, list, colB, colS, brName, brId, title, side){
 }
 
 // ══════════════════════════════════════
-// TAB2 股票代號
+// TAB2
 // ══════════════════════════════════════
 $('t2-search-btn').onclick = async ()=>{
   const sid = $('t2-sid').value.trim().toUpperCase();
@@ -904,7 +941,7 @@ function renderBrokerTable(wrapId, list, sid, title){
   const wrap = $(wrapId);
   if(!list.length){ wrap.innerHTML=`<div style="color:var(--text2);font-size:.85rem;padding:8px 0">${title} — 無資料</div>`; return; }
   const tbl = el('table',{class:'wl-table'});
-  const thead = el('thead'); const hr = el('tr');
+  const thead=el('thead'); const hr = el('tr');
   ['券商','買','賣','買進%','繪圖'].forEach(t=>hr.appendChild(el('th',{text:t})));
   thead.appendChild(hr); tbl.appendChild(thead);
   const tbody = el('tbody');
@@ -926,7 +963,7 @@ function renderBrokerTable(wrapId, list, sid, title){
 }
 
 // ══════════════════════════════════════
-// TAB3 地緣券商
+// TAB3
 // ══════════════════════════════════════
 $('t3-search-btn').onclick = async ()=>{
   const loc = $('t3-loc').value;
@@ -971,7 +1008,7 @@ function switchToT4(sid, brName){
   $('t4-br').value = brName || '';
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector('.nav-btn[data-tab=t4]').classList.add('active');
-  ['t1','t2','t3','t4'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');
+  ['t1','t2','t3','t4','t5'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');
   currentTab='t4';
   drawChart();
 }
@@ -986,11 +1023,7 @@ async function drawChart(){
   const days   = parseInt($('t4-days').value)||300;
   const startY = $('t4-start').value;
 
-  // 60分鐘用 60m，其餘一律用日線拉，前端再 resample
-  // 這樣 broker_history（永遠是日線日期）才能對得上 volMap
   const apiInterval = periodVal === '60m' ? '60m' : '1d';
-
-  // 空分點 → 只畫K線，不查券商買賣超
   const needBroker = brName && brInfo;
   if(brName && !brInfo){ showStatus('t4-status','找不到分點資料','error'); return; }
 
@@ -1007,39 +1040,32 @@ async function drawChart(){
     const histRes = needBroker ? results[1] : null;
 
     const kdata = klineRes.data || [];
-    // 優先用券商歷史的中文股名，快取起來，60m 無分點時沿用快取
     const sid_ = sid;
-    // 只有券商歷史回傳的才是中文名，klineRes 可能是英文，不存入快取
     if(histRes?.stock_name) lastStockName[sid_] = histRes.stock_name;
     const stockName = lastStockName[sid_] || klineRes.stock_name || '';
     const volMap = {};
     if(histRes) (histRes.records||[]).forEach(r=>{ volMap[r.Date]=r['買賣超']; });
     const is60m = (periodVal === '60m');
 
-    // 合併
     let merged = kdata.map(d=>({
-      date: d.Date,  // 60m 是 Unix timestamp（數字），其他是 YYYY-MM-DD
+      date: d.Date,
       open: d.Open, high: d.High, low: d.Low, close: d.Close,
       vol: volMap[d.Date]||0,
     }));
 
-    // 只有日/週/月才 resample
     if(!is60m){
       if(periodVal==='W') merged = resampleWeekly(merged);
       else if(periodVal==='M') merged = resampleMonthly(merged);
     }
 
-    // BB & MACD
     merged = calcBB(merged, 52, 2);
     merged = calcMACDFull(merged, 12,26,9, 'M1');
     merged = calcMACDFull(merged, 26,52,18, 'M2');
 
-    // Divergence markers（所有週期都計算）
     const {priceMarkers:pm1, macdMarkers:mm1} = getDivMarkers(merged,'M1_macd','M1_hist','S');
     const {priceMarkers:pm2, macdMarkers:mm2} = getDivMarkers(merged,'M2_macd','M2_hist','L');
     const allPriceMarkers = mergeMarkers([...pm1,...pm2]);
 
-    // 只取最後 N 根
     const plotData = merged.slice(-days);
     const plotDates = new Set(plotData.map(d=>d.date));
     const finalPM = allPriceMarkers.filter(m=>plotDates.has(m.time)).sort((a,b)=>a.time>b.time?1:-1);
@@ -1053,7 +1079,6 @@ async function drawChart(){
   }
 }
 
-// ── Resample ──
 function resampleWeekly(data){
   const weeks={};
   data.forEach(d=>{
@@ -1080,13 +1105,9 @@ function resampleMonthly(data){
   return Object.values(months).sort((a,b)=>a.date>b.date?1:-1);
 }
 
-// ── EMA / MACD / BB ──
 function ema(vals, span){
   const k=2/(span+1), res=[];
-  vals.forEach((v,i)=>{
-    if(i===0) res.push(v);
-    else res.push(v*k+res[i-1]*(1-k));
-  });
+  vals.forEach((v,i)=>{ if(i===0) res.push(v); else res.push(v*k+res[i-1]*(1-k)); });
   return res;
 }
 function calcMACDFull(data, fast, slow, signal, prefix){
@@ -1094,11 +1115,7 @@ function calcMACDFull(data, fast, slow, signal, prefix){
   const e1=ema(closes,fast), e2=ema(closes,slow);
   const macdLine=e1.map((v,i)=>v-e2[i]);
   const sigLine=ema(macdLine,signal);
-  data.forEach((d,i)=>{
-    d[prefix+'_macd']=macdLine[i];
-    d[prefix+'_sig']=sigLine[i];
-    d[prefix+'_hist']=macdLine[i]-sigLine[i];
-  });
+  data.forEach((d,i)=>{ d[prefix+'_macd']=macdLine[i]; d[prefix+'_sig']=sigLine[i]; d[prefix+'_hist']=macdLine[i]-sigLine[i]; });
   return data;
 }
 function calcBB(data, w, mult){
@@ -1112,7 +1129,6 @@ function calcBB(data, w, mult){
   return data;
 }
 
-// ── Divergence Markers ──
 function getDivMarkers(data, macdCol, histCol, prefix){
   const priceMarkers=[], macdMarkers=[];
   let curTopDif=0,curTopDate=null,curTopClose=0;
@@ -1209,7 +1225,6 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
     width:w, height:h,
   });
   currentChart=chart;
-  // K線：0~55%，買賣超：58~72%，短MACD：72~85%，長MACD：85~100%
   chart.priceScale('right').applyOptions({scaleMargins:{top:0.02,bottom:0.45}});
 
   const kSeries=chart.addCandlestickSeries({upColor:'#ef5350',downColor:'#26a69a',borderVisible:false,wickUpColor:'#ef5350',wickDownColor:'#26a69a',priceLineVisible:false});
@@ -1261,7 +1276,6 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   function updateLegend(d){
     if(!d) return;
     const vc=d.vol>=0?'#ef5350':'#26a69a';
-    // d.date 可能是 'YYYY-MM-DD' 或 Unix timestamp 數字
     let dateLabel, dowLabel;
     if(typeof d.date === 'number'){
       const dt = new Date(d.date*1000);
@@ -1283,13 +1297,11 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
     `;
   }
 
-  // 預設隱藏 legend
   legend.style.display='none';
 
   chart.subscribeCrosshairMove(param=>{
     if(!param.time||param.point===undefined||param.point.x<0||param.point.y<0){
-      legend.style.display='none';
-      return;
+      legend.style.display='none'; return;
     }
     let timeStr = param.time;
     if(typeof timeStr==='object'&&timeStr.year)
@@ -1298,7 +1310,6 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
     if(d){ legend.style.display='block'; updateLegend(d); }
   });
 
-  // 手機 touch 支援：直接監聽 touchmove 找最近K棒
   container.addEventListener('touchmove', e=>{
     e.preventDefault();
     const touch = e.touches[0];
@@ -1311,7 +1322,6 @@ function _doRenderChart(plotData, priceMarkers, macdMarkers1, macdMarkers2, sid,
   }, {passive:false});
 
   container.addEventListener('touchend', ()=>{
-    // 觸碰結束後 1.5 秒自動隱藏
     setTimeout(()=>{ legend.style.display='none'; }, 1500);
   });
 
@@ -1411,7 +1421,6 @@ $('wg-clear-btn').onclick=async()=>{
   renderWorkingGroup();
 };
 
-// FIX 1: 加入最愛時帶入 lastStockName 快取的中文股名
 $('t4-fav-btn').onclick=async()=>{
   const sid=$('t4-sid').value.trim().toUpperCase();
   const brName=$('t4-br').value;
@@ -1429,7 +1438,7 @@ $('t4-fav-btn').onclick=async()=>{
 };
 
 // ══════════════════════════════════════
-// VIP 掃描清單
+// VIP
 // ══════════════════════════════════════
 function initVipPanel(){
   ['vip-days','vip-pct'].forEach(id=>{
@@ -1438,7 +1447,6 @@ function initVipPanel(){
   });
   $('vip-period').onchange = ()=>{ vipScanData=[]; $('vip-caption').textContent=''; };
   $('vip-apply-btn').onclick = ()=>{
-    // 立即顯示 loading
     const btn=$('vip-apply-btn');
     btn.disabled=true; btn.textContent='⏳ 篩選中...';
     if(window.innerWidth>768){
@@ -1450,7 +1458,6 @@ function initVipPanel(){
 }
 
 async function loadAndFilterVip(){
-  // 若還沒載入或週期切換了才重新抓
   const sheet=$('vip-period').value;
   if(!vipScanData.length || vipScanData._sheet!==sheet){
     $('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入掃描資料中...</div>';
@@ -1467,7 +1474,6 @@ async function loadAndFilterVip(){
           dates.forEach(d=>{ const ds=d.replace(/\//g,'-'); if(!latestStr||ds>latestStr) latestStr=ds; });
         }
         row._latestDate=latestStr;
-        // 強度計算（跟Streamlit _score函數一致）
         let score=0;
         score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;
         const amt=parseFloat(row['金額(萬)']||0);
@@ -1497,15 +1503,12 @@ async function loadAndFilterVip(){
   applyVipFilter();
 }
 
-async function loadVipData(){ await loadAndFilterVip(); }
-
 function applyVipFilter(){
   const days=parseInt($('vip-days').value)||60;
   const dir=$('vip-dir').value;
   const minAmt=parseFloat($('vip-score').value)||0;
   const minPct=parseInt($('vip-pct').value)||0;
   const minVol=parseInt($('vip-vol').value)||0;
-  // 用字串比較日期（YYYY-MM-DD 字串可以直接比較大小）
   const cutoffDate=new Date(); cutoffDate.setDate(cutoffDate.getDate()-days);
   const cutoff=cutoffDate.toISOString().slice(0,10);
 
@@ -1525,7 +1528,6 @@ function applyVipFilter(){
     return vb-va;
   });
 
-  // 更新分點選單
   const brokerSel=$('vip-broker-sel');
   const curBr=brokerSel.value;
   brokerSel.innerHTML='<option>全部分點</option>';
@@ -1538,11 +1540,10 @@ function applyVipFilter(){
   brokerSel.onchange=renderVipTable;
 
   $('vip-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${vipFiltered.length} 檔`;
-  // 桌面版：開啟 overlay 顯示結果
   if(window.innerWidth > 768){
     const overlay=$('vip-overlay');
     overlay.classList.add('open');
-    overlay.style.display='flex'; // 強制顯示，防止 class 失效
+    overlay.style.display='flex';
     $('vip-overlay-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${vipFiltered.length} 檔`;
   }
   renderVipTable();
@@ -1555,7 +1556,6 @@ function renderVipTable(){
   const wrap=$('vip-table-wrap');
   if(!rows.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>'; return; }
 
-  // 加入工作組按鈕放在清單上方
   const topBar=document.createElement('div');
   topBar.className='vip-top-bar';
   topBar.style.cssText='display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;flex-shrink:0';
@@ -1565,7 +1565,6 @@ function renderVipTable(){
   selAllBtn.style.cssText='padding:6px 10px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
   topBar.appendChild(addBtn); topBar.appendChild(selAllBtn);
 
-  let allSelected=vipAllSelected;
   addBtn.onclick=async()=>{
     if(!vipSelected.size){ alert('請先勾選 🗂️ 欄位'); return; }
     let added=0;
@@ -1582,7 +1581,6 @@ function renderVipTable(){
   };
   selAllBtn.onclick=()=>{
     vipAllSelected=!vipAllSelected;
-    allSelected=vipAllSelected;
     selAllBtn.textContent=vipAllSelected?'☒ 取消全選':'☑ 全選';
     if(vipAllSelected) rows.forEach(r=>vipSelected.add(`${r['股票代號']}||${r['分點名稱']}`));
     else vipSelected.clear();
@@ -1591,7 +1589,6 @@ function renderVipTable(){
 
   const tbl=el('table',{class:'vip-table'});
   const thead=el('thead');
-  // 欄位：📊 🗂️ 代號 名稱 分點 方向 符合 張數 金額(萬) 佔比% 最新訊號日 訊號摘要
   thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('方向'),th('符合'),th('張數'),th('金額'),th('佔比%'),th('日期'),th('訊號')));
   tbl.appendChild(thead);
   const tbody=el('tbody');
@@ -1618,7 +1615,6 @@ function renderVipTable(){
   tbl.appendChild(tbody);
   wrap.innerHTML='';
   wrap.appendChild(topBar);
-  // FIX 4: 固定高度捲動區，sticky thead 生效需要 overflow-y:auto 在父容器
   const scrollWrap=document.createElement('div');
   const isDesktop = window.innerWidth > 768;
   scrollWrap.className='vip-scroll-wrap';
@@ -1629,7 +1625,7 @@ function renderVipTable(){
 }
 
 // ══════════════════════════════════════
-// MOBILE VIP PANEL（手機版，在 main content 裡）
+// MOBILE VIP
 // ══════════════════════════════════════
 function initMobileVipPanel(){
   ['m-vip-days','m-vip-pct'].forEach(id=>{
@@ -1643,7 +1639,6 @@ function initMobileVipPanel(){
 
 async function mobileApplyVipFilter(){
   const sheet=$('m-vip-period').value;
-  // 共用 desktop VIP 的資料，避免重複載入
   if(!vipScanData.length || vipScanData._sheet!==sheet){
     $('m-vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入中...</div>';
     try {
@@ -1709,7 +1704,6 @@ async function mobileApplyVipFilter(){
     return vb-va;
   });
 
-  // 更新分點選單
   const brokerSel=$('m-vip-broker-sel');
   const curBr=brokerSel.value;
   brokerSel.innerHTML='<option>全部分點</option>';
@@ -1720,7 +1714,6 @@ async function mobileApplyVipFilter(){
   });
   if([...brokerSel.options].find(o=>o.value===curBr)) brokerSel.value=curBr;
   brokerSel.onchange=()=>mobileApplyVipFilter();
-
   if(selBr!=='全部分點') filtered=filtered.filter(r=>r['分點名稱']===selBr);
 
   $('m-vip-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${filtered.length} 檔`;
@@ -1728,7 +1721,6 @@ async function mobileApplyVipFilter(){
   const wrap=$('m-vip-table-wrap');
   if(!filtered.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>'; return; }
 
-  // 按鈕在上方，緊湊尺寸
   const topBar=document.createElement('div');
   topBar.style.cssText='display:flex;gap:4px;margin-bottom:6px';
   const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'});
@@ -1780,18 +1772,110 @@ async function mobileApplyVipFilter(){
     ));
   });
   tbl.appendChild(tbody);
-
-  // FIX 4: 固定高度捲動，sticky thead 生效
   const scrollWrap=document.createElement('div');
   scrollWrap.style.cssText='max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:6px';
   scrollWrap.appendChild(tbl);
-
   wrap.innerHTML='';
   wrap.appendChild(topBar);
   wrap.appendChild(scrollWrap);
   $('m-vip-sel-wrap').innerHTML='';
 }
 
+// ══════════════════════════════════════
+// TAB5 年率監控
+// ══════════════════════════════════════
+function t5Fmt(n, d=2){
+  if(n==null) return '—';
+  return n.toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function t5FmtYoy(n){
+  if(n==null) return '—';
+  return (n>=0?'+':'')+n.toFixed(2)+'%';
+}
+function t5YoyColor(n){
+  if(n==null) return 'var(--text)';
+  if(n>1)  return 'var(--green)';
+  if(n<-1) return 'var(--red)';
+  return 'var(--yellow)';
+}
+function t5BorderColor(n){
+  if(n==null) return 'var(--border)';
+  if(n>1)  return 'var(--green)';
+  if(n<-1) return 'var(--red)';
+  return 'var(--yellow)';
+}
+function t5SigBg(n){
+  if(n==null) return 'rgba(255,214,0,0.12)';
+  if(n>1)  return 'rgba(38,166,154,0.12)';
+  if(n<-1) return 'rgba(239,83,80,0.12)';
+  return 'rgba(255,214,0,0.12)';
+}
+
+async function loadYoy(){
+  const btn=$('t5-refresh-btn');
+  btn.disabled=true; btn.textContent='⏳ 載入中...';
+  showStatus('t5-status','<div class="loading"><div class="spinner"></div>向後端請求年率資料...</div>');
+  $('t5-cards').innerHTML='';
+  $('t5-hero').style.display='none';
+
+  try {
+    const data = await apiFetch('/api/yoy/twii');
+
+    // Hero price（台股漲紅跌綠）
+    const gc = v => (v??0)>=0 ? 'var(--red)' : 'var(--green)';
+    const pEl=$('t5-price'), cEl=$('t5-change');
+    pEl.textContent = t5Fmt(data.latest_price);
+    pEl.style.color  = gc(data.latest_pct);
+    cEl.innerHTML = `<span style="color:${gc(data.latest_pct)}">${(data.latest_pct??0)>=0?'+':''}${t5Fmt(data.latest_pct)}%　${(data.latest_change??0)>=0?'+':''}${t5Fmt(data.latest_change)}</span>`;
+
+    // 月 YoY
+    const monthly = data.periods.find(p=>p.id==='monthly');
+    $('t5-ma').textContent = t5Fmt(monthly?.data?.cur_avg, 0);
+    $('t5-pa').textContent = t5Fmt(monthly?.data?.prev_avg, 0);
+    const myEl=$('t5-my');
+    myEl.textContent = t5FmtYoy(monthly?.data?.yoy_pct);
+    myEl.style.color  = t5YoyColor(monthly?.data?.yoy_pct);
+
+    // 共識
+    const conEl=$('t5-con');
+    const cc = data.consensus==='多頭'?'var(--red)':data.consensus==='空頭'?'var(--green)':'var(--yellow)';
+    const arrow = data.consensus==='多頭'?'↑':data.consensus==='空頭'?'↓':'→';
+    conEl.textContent = `${arrow} ${data.consensus} ${data.pos_count}↑${data.neg_count}↓`;
+    conEl.style.color  = cc;
+    $('t5-hero').style.display='block';
+
+    // Cards
+    $('t5-cards').innerHTML = data.periods.map(p=>{
+      const d = p.data;
+      const yoy = d?.yoy_pct;
+      const bc  = t5BorderColor(yoy);
+      const yc  = t5YoyColor(yoy);
+      const sbg = t5SigBg(yoy);
+      return `<div class="t5-card" style="border-top:2px solid ${bc}">
+        <div style="font-size:.7rem;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:8px">${p.label} 週期</div>
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:2px">當期均值　<span style="font-family:monospace;color:var(--text)">${t5Fmt(d?.cur_avg,0)}</span></div>
+        <div style="font-size:.78rem;color:var(--text2);margin-bottom:8px">去年同期　<span style="font-family:monospace;color:var(--text2)">${t5Fmt(d?.prev_avg,0)}</span></div>
+        <div style="font-family:monospace;font-size:26px;font-weight:700;color:${yc};line-height:1;margin-bottom:6px">${t5FmtYoy(yoy)}</div>
+        <div style="font-size:.75rem;padding:2px 7px;border-radius:3px;display:inline-block;background:${sbg};color:${yc}">${d?.signal??'—'}</div>
+        <div style="font-size:.7rem;color:var(--text2);margin-top:6px">${(d?.key??'').replace('T',' ')}</div>
+      </div>`;
+    }).join('');
+
+    showStatus('t5-status','');
+    $('t5-updated').textContent = '更新：' + new Date(data.updated_at).toLocaleString('zh-TW');
+
+  } catch(e){
+    showStatus('t5-status', e.message, 'error');
+  } finally {
+    btn.disabled=false; btn.textContent='↻ 更新資料';
+  }
+}
+
+$('t5-refresh-btn').onclick = loadYoy;
+
+// ══════════════════════════════════════
+// AUTO INIT
+// ══════════════════════════════════════
 (async()=>{
   if(token && username){
     try { await initApp(); }
@@ -1799,7 +1883,8 @@ async function mobileApplyVipFilter(){
   }
 })();
 </script>
-<!-- VIP 結果 Overlay（桌面版，浮在右側） -->
+
+<!-- VIP Overlay -->
 <div id="vip-overlay">
   <div id="vip-overlay-inner">
     <div id="vip-overlay-header">
