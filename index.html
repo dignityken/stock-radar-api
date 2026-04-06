@@ -78,11 +78,7 @@ button{cursor:pointer}
 .btn-search:hover{background:#1a45cc}
 .btn-secondary{padding:7px 14px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:.83rem}
 .btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
-@media(max-width:768px){
-  .ctrl-row{flex-direction:column;gap:8px}
-  .ctrl-group{width:100%}
-  .ctrl-group select,.ctrl-group input[type=text],.ctrl-group input[type=date]{width:100%;min-width:unset}
-}
+@media(max-width:768px){.ctrl-row{flex-direction:column;gap:8px}.ctrl-group{width:100%}.ctrl-group select,.ctrl-group input[type=text],.ctrl-group input[type=date]{width:100%;min-width:unset}}
 table{width:100%;border-collapse:collapse;font-size:.83rem}
 th{padding:7px 9px;background:var(--bg3);color:var(--text2);text-align:left;font-weight:600;white-space:nowrap;border-bottom:1px solid var(--border)}
 td{padding:6px 9px;border-bottom:1px solid var(--border);white-space:nowrap}
@@ -106,11 +102,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
 .legend-lbl{color:var(--text2)}
 .legend-vol{margin-top:5px;padding-top:5px;border-top:1px dashed var(--border);font-weight:700}
 .legend-macd{margin-top:3px;font-size:.72rem;color:var(--text2);line-height:1.4}
-@media(max-width:768px){
-  .chart-controls{flex-direction:column;gap:6px}
-  #chart-wrapper{height:75vh;min-height:480px}
-  .chart-legend{font-size:.72rem;max-width:200px;padding:6px 10px}
-}
+@media(max-width:768px){.chart-controls{flex-direction:column;gap:6px}#chart-wrapper{height:75vh;min-height:480px}.chart-legend{font-size:.72rem;max-width:200px;padding:6px 10px}}
 .list-tab-summary{cursor:pointer;padding:8px 12px;font-size:.88rem;font-weight:600;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);list-style:none;display:flex;align-items:center;gap:6px;user-select:none;margin-bottom:4px;}
 .list-tab-summary::-webkit-details-marker{display:none}
 details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
@@ -139,10 +131,14 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 /* TAB5 */
 .t5-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;transition:border-color .2s}
 .t5-card:hover{border-color:rgba(41,98,255,0.4)}
-.t5-chart-box{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:16px}
-.t5-chart-tabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
-.t5-chart-tab{padding:5px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;font-size:.8rem;cursor:pointer;color:var(--text2)}
-.t5-chart-tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+/* 多線圖 */
+#t5-multi-chart{width:100%;height:320px;position:relative;cursor:crosshair}
+#t5-multi-chart canvas{display:block}
+.t5-legend-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;font-size:.78rem}
+.t5-legend-item{display:flex;align-items:center;gap:5px;cursor:pointer;opacity:1;transition:opacity .2s}
+.t5-legend-item.hidden{opacity:0.3}
+.t5-legend-dot{width:12px;height:3px;border-radius:2px;flex-shrink:0}
+.t5-tooltip{position:absolute;top:8px;right:8px;background:rgba(14,17,23,.95);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:.75rem;font-family:monospace;pointer-events:none;min-width:200px;line-height:1.8}
 </style>
 </head>
 <body>
@@ -228,9 +224,7 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
           <div class="ctrl-group"><label>佔比 >= %</label><input type="number" id="t1-pct" value="95" min="0" max="100" style="width:80px"></div>
           <button class="btn-search" id="t1-search-btn">🚀 開始尋寶</button>
         </div>
-        <div id="t1-status"></div>
-        <div id="t1-buy-wrap"></div>
-        <div id="t1-sell-wrap"></div>
+        <div id="t1-status"></div><div id="t1-buy-wrap"></div><div id="t1-sell-wrap"></div>
       </div>
 
       <!-- TAB2 -->
@@ -245,9 +239,7 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
           <div class="ctrl-group"><label>最低張數</label><input type="number" id="t2-vol" value="10" min="0" style="width:80px"></div>
           <button class="btn-search" id="t2-search-btn">🚀 開始追蹤</button>
         </div>
-        <div id="t2-status"></div>
-        <div id="t2-buy-wrap"></div>
-        <div id="t2-sell-wrap"></div>
+        <div id="t2-status"></div><div id="t2-buy-wrap"></div><div id="t2-sell-wrap"></div>
       </div>
 
       <!-- TAB3 -->
@@ -265,9 +257,7 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
           <div class="ctrl-group"><label>佔比 >= %</label><input type="number" id="t3-pct" value="95" min="0" max="100" style="width:80px"></div>
           <button class="btn-search" id="t3-search-btn">📡 啟動雷達</button>
         </div>
-        <div id="t3-status"></div>
-        <div id="t3-buy-wrap"></div>
-        <div id="t3-sell-wrap"></div>
+        <div id="t3-status"></div><div id="t3-buy-wrap"></div><div id="t3-sell-wrap"></div>
       </div>
 
       <!-- TAB4 -->
@@ -306,7 +296,7 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
         <div style="background:rgba(41,98,255,0.07);border:1px solid rgba(41,98,255,0.2);border-radius:6px;padding:10px 14px;font-size:.82rem;color:var(--text2);margin-bottom:14px;line-height:1.9">
           <b style="color:var(--accent)">年率公式：</b>（當期均值 ÷ 一年前同期均值 − 1）× 100　｜　
           <b style="color:var(--accent)">訊號：</b>&gt;+20% 過熱謹慎　&gt;+10% 動能強　&gt;+2% 偏多　±2% 中性　&lt;−2% 偏空　&lt;−10% 動能弱
-          <br>資料由後端 yfinance 抓取，每小時 cache 一次。
+          <br>資料由後端 yfinance 抓取，每小時 cache 一次。月線從1990年起，週線從2015年起，日線從2020年起。
         </div>
 
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
@@ -334,17 +324,25 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
           </div>
         </div>
 
-        <!-- YoY 歷史走勢圖 -->
-        <div class="t5-chart-box" id="t5-chart-box" style="display:none">
-          <div style="font-size:.85rem;font-weight:600;color:var(--text2);margin-bottom:8px">YoY 年率歷史走勢</div>
-          <div class="t5-chart-tabs" id="t5-chart-tabs">
-            <button class="t5-chart-tab active" data-pid="monthly">月</button>
-            <button class="t5-chart-tab" data-pid="weekly">週</button>
-            <button class="t5-chart-tab" data-pid="daily">日</button>
-            <button class="t5-chart-tab" data-pid="yearly">年</button>
+        <!-- 多線 YoY 走勢圖（tcagugua 風格）-->
+        <div id="t5-chart-wrap" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:.85rem;font-weight:600;color:var(--text)">YoY 年率歷史走勢（多週期疊加）</div>
+            <!-- 顯示窗口選擇 -->
+            <div style="display:flex;gap:4px">
+              <button class="t5-range-btn" data-range="5" style="padding:3px 9px;font-size:.75rem;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2)">5年</button>
+              <button class="t5-range-btn active" data-range="10" style="padding:3px 9px;font-size:.75rem;background:var(--accent);border:1px solid var(--accent);border-radius:4px;color:#fff">10年</button>
+              <button class="t5-range-btn" data-range="20" style="padding:3px 9px;font-size:.75rem;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2)">20年</button>
+              <button class="t5-range-btn" data-range="999" style="padding:3px 9px;font-size:.75rem;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--text2)">全部</button>
+            </div>
           </div>
-          <div id="t5-yoy-chart" style="width:100%;height:280px;position:relative"></div>
-          <div id="t5-chart-legend" style="font-family:monospace;font-size:.78rem;color:var(--text2);margin-top:6px;height:18px"></div>
+          <!-- 圖例 -->
+          <div class="t5-legend-row" id="t5-legend-row"></div>
+          <!-- Canvas -->
+          <div style="position:relative">
+            <div id="t5-multi-chart"></div>
+            <div class="t5-tooltip" id="t5-tooltip" style="display:none"></div>
+          </div>
         </div>
 
         <!-- Period cards -->
@@ -359,645 +357,288 @@ details[open] .list-tab-summary{border-color:var(--accent);color:var(--accent)}
 </div>
 
 <script>
-const API = 'https://stock-radar-api-ky4l.onrender.com';
-let token = localStorage.getItem('sr_token') || '';
-let username = localStorage.getItem('sr_username') || '';
-let userRole = localStorage.getItem('sr_role') || '';
-let brokerTree = {}, brokerMap = {}, geoMap = {};
-let watchlist = [], workingGroup = [];
-let vipScanData = [], vipFiltered = [];
-let vipSelected = new Set(), vipAllSelected = false;
-let currentChart = null, lastStockName = {}, currentTab = 't1';
-let t5Data = null; // 年率資料快取
-let t5LwChart = null; // YoY 折線圖實例
+const API='https://stock-radar-api-ky4l.onrender.com';
+let token=localStorage.getItem('sr_token')||'';
+let username=localStorage.getItem('sr_username')||'';
+let userRole=localStorage.getItem('sr_role')||'';
+let brokerTree={},brokerMap={},geoMap={};
+let watchlist=[],workingGroup=[];
+let vipScanData=[],vipFiltered=[],vipSelected=new Set(),vipAllSelected=false;
+let currentChart=null,lastStockName={},currentTab='t1';
+let t5Data=null,t5YearsRange=10,t5SeriesVisible={};
 
-const $ = id => document.getElementById(id);
-const el = (tag, ...args) => {
-  const e = document.createElement(tag);
-  const attr = (args[0] && typeof args[0]==='object' && !(args[0] instanceof Node)) ? args.shift() : {};
-  Object.entries(attr).forEach(([k,v])=>{
-    if(k==='class') e.className=v;
-    else if(k==='html') e.innerHTML=v;
-    else if(k==='text') e.textContent=v;
-    else if(k.startsWith('on')) e.addEventListener(k.slice(2),v);
-    else e.setAttribute(k,v);
-  });
+const $=id=>document.getElementById(id);
+const el=(tag,...args)=>{
+  const e=document.createElement(tag);
+  const attr=(args[0]&&typeof args[0]==='object'&&!(args[0] instanceof Node))?args.shift():{};
+  Object.entries(attr).forEach(([k,v])=>{ if(k==='class') e.className=v; else if(k==='html') e.innerHTML=v; else if(k==='text') e.textContent=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else e.setAttribute(k,v); });
   args.forEach(c=>{ if(c==null) return; if(typeof c==='string') e.appendChild(document.createTextNode(c)); else if(c instanceof Node) e.appendChild(c); });
   return e;
 };
-const td = (...a) => el('td',...a);
-const th = t => el('th',{text:t});
-const tr = (...tds) => { const r=el('tr'); tds.forEach(t=>r.appendChild(t)); return r; };
-
-function showStatus(id, msg, type='info'){
-  const d=$(id); if(!d) return;
-  d.innerHTML = msg ? `<div class="status-msg status-${type}">${msg}</div>` : '';
-}
-function fmtDate(d){ return d.toISOString().split('T')[0]; }
-function today(){ return fmtDate(new Date()); }
-function daysAgo(n){ const d=new Date(); d.setDate(d.getDate()-n); return fmtDate(d); }
-
-async function apiFetch(path, opts={}){
-  const headers = {'Content-Type':'application/json'};
-  if(token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(API+path, {...opts, headers:{...headers,...(opts.headers||{})}});
-  if(res.status===401){ doLogout(); throw new Error('未登入'); }
-  if(!res.ok){ const err = await res.json().catch(()=>({detail:res.statusText})); throw new Error(err.detail||res.statusText); }
+const td=(...a)=>el('td',...a),th=t=>el('th',{text:t}),tr=(...tds)=>{const r=el('tr');tds.forEach(t=>r.appendChild(t));return r;};
+function showStatus(id,msg,type='info'){const d=$(id);if(!d)return;d.innerHTML=msg?`<div class="status-msg status-${type}">${msg}</div>`:''}
+function fmtDate(d){return d.toISOString().split('T')[0]}
+function today(){return fmtDate(new Date())}
+function daysAgo(n){const d=new Date();d.setDate(d.getDate()-n);return fmtDate(d)}
+async function apiFetch(path,opts={}){
+  const headers={'Content-Type':'application/json'};
+  if(token) headers['Authorization']=`Bearer ${token}`;
+  const res=await fetch(API+path,{...opts,headers:{...headers,...(opts.headers||{})}});
+  if(res.status===401){doLogout();throw new Error('未登入')}
+  if(!res.ok){const err=await res.json().catch(()=>({detail:res.statusText}));throw new Error(err.detail||res.statusText)}
   return res.json();
 }
 
 // ── LOGIN ──
-$('login-btn').onclick = async () => {
-  const email=$('login-email').value.trim(), pwd=$('login-pwd').value;
+$('login-btn').onclick=async()=>{
+  const email=$('login-email').value.trim(),pwd=$('login-pwd').value;
   $('login-error').textContent='';
-  if(!email||!pwd){ $('login-error').textContent='請輸入 Email 和密碼'; return; }
-  try {
-    $('login-btn').textContent='登入中...'; $('login-btn').disabled=true;
-    const data = await fetch(API+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pwd})});
-    if(!data.ok){ const err=await data.json(); throw new Error(err.detail||'登入失敗'); }
-    const res = await data.json();
-    token=res.token; username=res.username; userRole=res.role;
-    localStorage.setItem('sr_token',token); localStorage.setItem('sr_username',username); localStorage.setItem('sr_role',userRole);
+  if(!email||!pwd){$('login-error').textContent='請輸入 Email 和密碼';return}
+  try{
+    $('login-btn').textContent='登入中...';$('login-btn').disabled=true;
+    const data=await fetch(API+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pwd})});
+    if(!data.ok){const err=await data.json();throw new Error(err.detail||'登入失敗')}
+    const res=await data.json();
+    token=res.token;username=res.username;userRole=res.role;
+    localStorage.setItem('sr_token',token);localStorage.setItem('sr_username',username);localStorage.setItem('sr_role',userRole);
     await initApp();
-  } catch(e){ $('login-error').textContent=e.message; }
-  finally { $('login-btn').textContent='🔐 登入'; $('login-btn').disabled=false; }
+  }catch(e){$('login-error').textContent=e.message}
+  finally{$('login-btn').textContent='🔐 登入';$('login-btn').disabled=false}
 };
-$('login-pwd').addEventListener('keydown',e=>{ if(e.key==='Enter') $('login-btn').click(); });
-
-function doLogout(){
-  localStorage.removeItem('sr_token'); localStorage.removeItem('sr_username'); localStorage.removeItem('sr_role');
-  token=''; username=''; userRole='';
-  $('app').style.display='none'; $('login-screen').style.display='flex';
-}
-$('logout-btn').onclick = doLogout;
+$('login-pwd').addEventListener('keydown',e=>{if(e.key==='Enter')$('login-btn').click()});
+function doLogout(){localStorage.removeItem('sr_token');localStorage.removeItem('sr_username');localStorage.removeItem('sr_role');token='';username='';userRole='';$('app').style.display='none';$('login-screen').style.display='flex'}
+$('logout-btn').onclick=doLogout;
 
 // ── INIT ──
 async function initApp(){
   $('login-screen').style.display='none';
-  if(window.innerWidth<=768) $('app').style.display='block'; else $('app').style.removeProperty('display');
+  if(window.innerWidth<=768)$('app').style.display='block';else $('app').style.removeProperty('display');
   $('sb-username').textContent=username;
   $('sb-role').textContent=userRole==='vip'?'⭐ VIP 會員':userRole==='admin'?'🔧 管理員':'👤 會員';
-
-  const mc=$('main-content');
-  const ld=document.createElement('div');
-  ld.id='broker-loading'; ld.className='status-msg status-info'; ld.style.margin='0 0 10px';
-  ld.innerHTML='<div class="loading"><div class="spinner"></div>正在連線伺服器，首次啟動約需 30~60 秒請稍候...</div>';
+  const mc=$('main-content'),ld=document.createElement('div');
+  ld.id='broker-loading';ld.className='status-msg status-info';ld.style.margin='0 0 10px';
+  ld.innerHTML='<div class="loading"><div class="spinner"></div>正在連線伺服器，首次啟動約需 30~60 秒...</div>';
   mc.insertBefore(ld,mc.firstChild);
-
-  try {
-    const [tree,map,geo] = await Promise.all([apiFetch('/api/brokers/tree'),apiFetch('/api/brokers/map'),apiFetch('/api/brokers/geo')]);
-    brokerTree=tree; brokerMap=map; geoMap=geo;
-    buildT1Selects(); buildT3Selects(); buildT4BrSelect();
-    ld.remove();
-  } catch(e){ ld.className='status-msg status-error'; ld.innerHTML=`⚠️ 伺服器連線失敗，請重新整理。(${e.message})`; }
-
-  ['t1','t2','t3'].forEach(t=>{ $(t+'-sd').value=daysAgo(7); $(t+'-ed').value=today(); });
-  await loadWatchlist(); await loadWorkingGroup();
-  renderWatchlist(); renderWorkingGroup();
-
-  if(userRole==='vip'){ if(window.innerWidth>768) $('vip-panel').style.display='block'; initVipPanel(); }
-
+  try{
+    const [tree,map,geo]=await Promise.all([apiFetch('/api/brokers/tree'),apiFetch('/api/brokers/map'),apiFetch('/api/brokers/geo')]);
+    brokerTree=tree;brokerMap=map;geoMap=geo;
+    buildT1Selects();buildT3Selects();buildT4BrSelect();ld.remove();
+  }catch(e){ld.className='status-msg status-error';ld.innerHTML=`⚠️ 伺服器連線失敗，請重新整理。(${e.message})`}
+  ['t1','t2','t3'].forEach(t=>{$(t+'-sd').value=daysAgo(7);$(t+'-ed').value=today()});
+  await loadWatchlist();await loadWorkingGroup();renderWatchlist();renderWorkingGroup();
+  if(userRole==='vip'){if(window.innerWidth>768)$('vip-panel').style.display='block';initVipPanel()}
   function adjPad(){
-    if(window.innerWidth<=768){
-      const sb=document.querySelector('.sidebar'),mc=document.querySelector('.main-content');
-      if(sb&&mc) mc.style.paddingTop=(sb.offsetHeight+8)+'px';
-      if(userRole==='vip') $('mobile-vip-panel').style.display='block';
-    } else { const mc=document.querySelector('.main-content'); if(mc) mc.style.paddingTop=''; $('mobile-vip-panel').style.display='none'; }
+    if(window.innerWidth<=768){const sb=document.querySelector('.sidebar'),mc=document.querySelector('.main-content');if(sb&&mc)mc.style.paddingTop=(sb.offsetHeight+8)+'px';if(userRole==='vip')$('mobile-vip-panel').style.display='block'}
+    else{const mc=document.querySelector('.main-content');if(mc)mc.style.paddingTop='';$('mobile-vip-panel').style.display='none'}
   }
-  adjPad();
-  new ResizeObserver(adjPad).observe(document.querySelector('.sidebar'));
-  window.addEventListener('resize',adjPad);
-  if(userRole==='vip') initMobileVipPanel();
-
-  const ocb=$('vip-overlay-close');
-  if(ocb) ocb.onclick=()=>{ const o=$('vip-overlay'); o.classList.remove('open'); o.style.display=''; };
-
+  adjPad();new ResizeObserver(adjPad).observe(document.querySelector('.sidebar'));window.addEventListener('resize',adjPad);
+  if(userRole==='vip')initMobileVipPanel();
+  const ocb=$('vip-overlay-close');if(ocb)ocb.onclick=()=>{const o=$('vip-overlay');o.classList.remove('open');o.style.display=''};
   document.querySelectorAll('.nav-btn').forEach(btn=>{
     btn.onclick=()=>{
       document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      const tab=btn.dataset.tab; currentTab=tab;
-      ['t1','t2','t3','t4','t5'].forEach(t=>{ $('tab-'+t).style.display=t===tab?'':'none'; });
-      if(tab==='t5' && $('t5-updated').textContent==='尚未載入') loadYoy();
-    };
+      btn.classList.add('active');const tab=btn.dataset.tab;currentTab=tab;
+      ['t1','t2','t3','t4','t5'].forEach(t=>{$('tab-'+t).style.display=t===tab?'':'none'});
+      if(tab==='t5'&&$('t5-updated').textContent==='尚未載入')loadYoy();
+    }
   });
 }
 
 // ── BROKER SELECTS ──
 function buildT1Selects(){
-  const hqSel=$('t1-hq'); hqSel.innerHTML='';
+  const hqSel=$('t1-hq');hqSel.innerHTML='';
   Object.keys(brokerTree).sort().forEach(hq=>hqSel.appendChild(el('option',{value:hq,text:hq})));
-  hqSel.onchange=()=>{
-    const list=$('t1-br-list'); if(!list) return; list.innerHTML='';
-    const branches=brokerTree[hqSel.value]?.branches||[];
-    [...branches].sort().forEach(b=>{ const o=document.createElement('option'); o.value=b; list.appendChild(o); });
-    $('t1-br').value=branches.length>0?[...branches].sort()[0]:'';
-  };
+  hqSel.onchange=()=>{const list=$('t1-br-list');if(!list)return;list.innerHTML='';const branches=brokerTree[hqSel.value]?.branches||[];[...branches].sort().forEach(b=>{const o=document.createElement('option');o.value=b;list.appendChild(o)});$('t1-br').value=branches.length>0?[...branches].sort()[0]:''};
   hqSel.dispatchEvent(new Event('change'));
 }
 function buildT3Selects(){
-  const locSel=$('t3-loc'); locSel.innerHTML='';
+  const locSel=$('t3-loc');locSel.innerHTML='';
   Object.keys(geoMap).sort().forEach(loc=>locSel.appendChild(el('option',{value:loc,text:loc})));
-  locSel.onchange=()=>{
-    const list=$('t3-br-list'); if(!list) return; list.innerHTML='';
-    const branches=(geoMap[locSel.value]||[]).sort();
-    branches.forEach(b=>{ const o=document.createElement('option'); o.value=b; list.appendChild(o); });
-    $('t3-br').value=branches.length>0?branches[0]:'';
-  };
+  locSel.onchange=()=>{const list=$('t3-br-list');if(!list)return;list.innerHTML='';const branches=(geoMap[locSel.value]||[]).sort();branches.forEach(b=>{const o=document.createElement('option');o.value=b;list.appendChild(o)});$('t3-br').value=branches.length>0?branches[0]:''};
   locSel.dispatchEvent(new Event('change'));
 }
 function buildT4BrSelect(){
-  const list=$('t4-br-list'); list.innerHTML='';
-  const sorted=Object.keys(brokerMap).sort();
-  sorted.forEach(br=>{ const o=document.createElement('option'); o.value=br; list.appendChild(o); });
-  if(sorted.length>0&&!$('t4-br').value) $('t4-br').value=sorted[0];
+  const list=$('t4-br-list');list.innerHTML='';const sorted=Object.keys(brokerMap).sort();
+  sorted.forEach(br=>{const o=document.createElement('option');o.value=br;list.appendChild(o)});
+  if(sorted.length>0&&!$('t4-br').value)$('t4-br').value=sorted[0];
 }
 
 // ── TAB1 ──
 $('t1-search-btn').onclick=async()=>{
   const hqName=$('t1-hq').value,brName=$('t1-br').value,hqData=brokerTree[hqName];
-  if(!hqData){ showStatus('t1-status','找不到券商','error'); return; }
-  const hqId=hqData.bid,brId=brokerMap[brName]?.br_id||hqId;
-  const sd=$('t1-sd').value,ed=$('t1-ed').value;
-  const unit=document.querySelector('input[name=t1-unit]:checked').value;
-  const mode=document.querySelector('input[name=t1-mode]:checked').value;
-  const pct=parseFloat($('t1-pct').value)||95;
+  if(!hqData){showStatus('t1-status','找不到券商','error');return}
+  const hqId=hqData.bid,brId=brokerMap[brName]?.br_id||hqId,sd=$('t1-sd').value,ed=$('t1-ed').value;
+  const unit=document.querySelector('input[name=t1-unit]:checked').value,mode=document.querySelector('input[name=t1-mode]:checked').value,pct=parseFloat($('t1-pct').value)||95;
   showStatus('t1-status','<div class="loading"><div class="spinner"></div>查詢中...</div>');
-  $('t1-buy-wrap').innerHTML=''; $('t1-sell-wrap').innerHTML='';
-  try {
+  $('t1-buy-wrap').innerHTML='';$('t1-sell-wrap').innerHTML='';
+  try{
     const data=await apiFetch(`/api/broker/stocks?hq_id=${hqId}&br_id=${brId}&start=${sd}&end=${ed}&unit=${unit}`);
     const colB=unit==='amount'?'買進金額':'買進張數',colS=unit==='amount'?'賣出金額':'賣出張數';
     let buyList,sellList;
-    if(mode==='strict'){ buyList=data.filter(r=>r[colB]>0&&r[colS]===0); sellList=data.filter(r=>r[colS]>0&&r[colB]===0); }
-    else { buyList=data.filter(r=>r['買%']>=pct); sellList=data.filter(r=>r['賣%']>=pct); }
-    buyList.sort((a,b)=>b[colB]-a[colB]); sellList.sort((a,b)=>b[colS]-a[colS]);
+    if(mode==='strict'){buyList=data.filter(r=>r[colB]>0&&r[colS]===0);sellList=data.filter(r=>r[colS]>0&&r[colB]===0)}
+    else{buyList=data.filter(r=>r['買%']>=pct);sellList=data.filter(r=>r['賣%']>=pct)}
+    buyList.sort((a,b)=>b[colB]-a[colB]);sellList.sort((a,b)=>b[colS]-a[colS]);
     showStatus('t1-status','');
     renderStockTable('t1-buy-wrap',buyList,colB,colS,brName,brId,'🔴 買進','buy');
     renderStockTable('t1-sell-wrap',sellList,colB,colS,brName,brId,'🟢 賣出','sell');
-  } catch(e){ showStatus('t1-status',e.message,'error'); }
+  }catch(e){showStatus('t1-status',e.message,'error')}
 };
 function renderStockTable(wrapId,list,colB,colS,brName,brId,title,side){
   const wrap=$(wrapId);
-  if(!list.length){ wrap.innerHTML=`<div style="color:var(--text2);font-size:.85rem;padding:8px 0">${title} — 無資料</div>`; return; }
+  if(!list.length){wrap.innerHTML=`<div style="color:var(--text2);font-size:.85rem;padding:8px 0">${title} — 無資料</div>`;return}
   const tbl=el('table',{class:'wl-table'}),thead=el('thead');
-  thead.appendChild(tr(th('代號'),th('名稱'),th('買進'),th('賣出'),th('佔%'),th('K線'),th('繪圖')));
-  tbl.appendChild(thead);
+  thead.appendChild(tr(th('代號'),th('名稱'),th('買進'),th('賣出'),th('佔%'),th('K線'),th('繪圖')));tbl.appendChild(thead);
   const tbody=el('tbody');
   list.forEach(row=>{
-    const sid=String(row['股票代號']||'').trim();
-    const sname=String(row['股票名稱']||'').trim().replace(/^\d+[A-Za-z]?\s*/,'').trim()||String(row['股票名稱']||'').trim();
-    const kUrl=`https://fubon-ebrokerdj.fbs.com.tw/z/zc/zcw/zcw1_${sid}.djhtm`;
-    const drawBtn=el('button',{class:'link-btn',text:'📊'});
+    const sid=String(row['股票代號']||'').trim(),sname=String(row['股票名稱']||'').trim().replace(/^\d+[A-Za-z]?\s*/,'').trim()||String(row['股票名稱']||'').trim();
+    const kUrl=`https://fubon-ebrokerdj.fbs.com.tw/z/zc/zcw/zcw1_${sid}.djhtm`,drawBtn=el('button',{class:'link-btn',text:'📊'});
     drawBtn.onclick=()=>switchToT4(sid,brName);
     tbody.appendChild(tr(td({text:sid}),td({text:sname}),td({text:(row[colB]||0).toLocaleString()}),td({text:(row[colS]||0).toLocaleString()}),td({text:(side==='buy'?row['買%']:row['賣%'])+'%'}),td(el('a',{class:'link-btn',href:kUrl,target:'_blank',text:'📈'})),td(drawBtn)));
   });
-  tbl.appendChild(tbody);
-  wrap.innerHTML=`<div style="font-weight:600;margin:12px 0 6px">${title} — 共 ${list.length} 檔</div>`;
-  wrap.appendChild(tbl);
+  tbl.appendChild(tbody);wrap.innerHTML=`<div style="font-weight:600;margin:12px 0 6px">${title} — 共 ${list.length} 檔</div>`;wrap.appendChild(tbl);
 }
 
 // ── TAB2 ──
 $('t2-search-btn').onclick=async()=>{
   const sid=$('t2-sid').value.trim().toUpperCase(),sd=$('t2-sd').value,ed=$('t2-ed').value;
-  const mode=document.querySelector('input[name=t2-mode]:checked').value;
-  const pct=parseFloat($('t2-pct').value)||95,vol=parseFloat($('t2-vol').value)||0;
+  const mode=document.querySelector('input[name=t2-mode]:checked').value,pct=parseFloat($('t2-pct').value)||95,vol=parseFloat($('t2-vol').value)||0;
   showStatus('t2-status','<div class="loading"><div class="spinner"></div>查詢中...</div>');
-  $('t2-buy-wrap').innerHTML=''; $('t2-sell-wrap').innerHTML='';
-  try {
+  $('t2-buy-wrap').innerHTML='';$('t2-sell-wrap').innerHTML='';
+  try{
     const data=await apiFetch(`/api/stock/brokers?sid=${sid}&start=${sd}&end=${ed}`);
     let buyList,sellList;
-    if(mode==='strict'){ buyList=data.filter(r=>r['買']>=vol&&r['賣']===0); sellList=data.filter(r=>r['賣']>=vol&&r['買']===0); }
-    else { buyList=data.filter(r=>r['買進%']>=pct&&r['買']>=vol); sellList=data.filter(r=>r['賣出%']>=pct&&r['賣']>=vol); }
-    buyList.sort((a,b)=>b['買']-a['買']); sellList.sort((a,b)=>b['賣']-a['賣']);
-    showStatus('t2-status','');
-    renderBrokerTable('t2-buy-wrap',buyList,sid,'🔴 買進分點');
-    renderBrokerTable('t2-sell-wrap',sellList,sid,'🟢 賣出分點');
-  } catch(e){ showStatus('t2-status',e.message,'error'); }
+    if(mode==='strict'){buyList=data.filter(r=>r['買']>=vol&&r['賣']===0);sellList=data.filter(r=>r['賣']>=vol&&r['買']===0)}
+    else{buyList=data.filter(r=>r['買進%']>=pct&&r['買']>=vol);sellList=data.filter(r=>r['賣出%']>=pct&&r['賣']>=vol)}
+    buyList.sort((a,b)=>b['買']-a['買']);sellList.sort((a,b)=>b['賣']-a['賣']);
+    showStatus('t2-status','');renderBrokerTable('t2-buy-wrap',buyList,sid,'🔴 買進分點');renderBrokerTable('t2-sell-wrap',sellList,sid,'🟢 賣出分點');
+  }catch(e){showStatus('t2-status',e.message,'error')}
 };
 function renderBrokerTable(wrapId,list,sid,title){
-  const wrap=$(wrapId);
-  if(!list.length){ wrap.innerHTML=`<div style="color:var(--text2);font-size:.85rem;padding:8px 0">${title} — 無資料</div>`; return; }
+  const wrap=$(wrapId);if(!list.length){wrap.innerHTML=`<div style="color:var(--text2);font-size:.85rem;padding:8px 0">${title} — 無資料</div>`;return}
   const tbl=el('table',{class:'wl-table'}),thead=el('thead'),hr=el('tr');
-  ['券商','買','賣','買進%','繪圖'].forEach(t=>hr.appendChild(el('th',{text:t})));
-  thead.appendChild(hr); tbl.appendChild(thead);
+  ['券商','買','賣','買進%','繪圖'].forEach(t=>hr.appendChild(el('th',{text:t})));thead.appendChild(hr);tbl.appendChild(thead);
   const tbody=el('tbody');
-  list.forEach(row=>{
-    const brName=row['券商'],r=el('tr');
-    r.appendChild(el('td',{text:brName})); r.appendChild(el('td',{text:(row['買']||0).toLocaleString()}));
-    r.appendChild(el('td',{text:(row['賣']||0).toLocaleString()})); r.appendChild(el('td',{text:row['買進%']+'%'}));
-    const d=el('td'); d.appendChild(el('button',{class:'link-btn',text:'📊',onclick:()=>switchToT4(sid,brName)}));
-    r.appendChild(d); tbody.appendChild(r);
-  });
-  tbl.appendChild(tbody);
-  wrap.innerHTML=`<div style="font-weight:600;margin:12px 0 6px">${title} — 共 ${list.length} 筆</div>`;
-  wrap.appendChild(tbl);
+  list.forEach(row=>{const brName=row['券商'],r=el('tr');r.appendChild(el('td',{text:brName}));r.appendChild(el('td',{text:(row['買']||0).toLocaleString()}));r.appendChild(el('td',{text:(row['賣']||0).toLocaleString()}));r.appendChild(el('td',{text:row['買進%']+'%'}));const d=el('td');d.appendChild(el('button',{class:'link-btn',text:'📊',onclick:()=>switchToT4(sid,brName)}));r.appendChild(d);tbody.appendChild(r)});
+  tbl.appendChild(tbody);wrap.innerHTML=`<div style="font-weight:600;margin:12px 0 6px">${title} — 共 ${list.length} 筆</div>`;wrap.appendChild(tbl);
 }
 
 // ── TAB3 ──
 $('t3-search-btn').onclick=async()=>{
-  const loc=$('t3-loc').value,brName=$('t3-br').value,brInfo=brokerMap[brName];
-  if(!brInfo){ showStatus('t3-status','找不到分點資料','error'); return; }
-  const sd=$('t3-sd').value,ed=$('t3-ed').value;
-  const unit=document.querySelector('input[name=t3-unit]:checked').value;
-  const mode=document.querySelector('input[name=t3-mode]:checked').value;
-  const pct=parseFloat($('t3-pct').value)||95;
+  const brName=$('t3-br').value,brInfo=brokerMap[brName];
+  if(!brInfo){showStatus('t3-status','找不到分點資料','error');return}
+  const sd=$('t3-sd').value,ed=$('t3-ed').value,unit=document.querySelector('input[name=t3-unit]:checked').value;
+  const mode=document.querySelector('input[name=t3-mode]:checked').value,pct=parseFloat($('t3-pct').value)||95;
   showStatus('t3-status','<div class="loading"><div class="spinner"></div>查詢中...</div>');
-  $('t3-buy-wrap').innerHTML=''; $('t3-sell-wrap').innerHTML='';
-  try {
+  $('t3-buy-wrap').innerHTML='';$('t3-sell-wrap').innerHTML='';
+  try{
     const data=await apiFetch(`/api/broker/stocks?hq_id=${brInfo.hq_id}&br_id=${brInfo.br_id}&start=${sd}&end=${ed}&unit=${unit}`);
     const colB=unit==='amount'?'買進金額':'買進張數',colS=unit==='amount'?'賣出金額':'賣出張數';
     let buyList,sellList;
-    if(mode==='strict'){ buyList=data.filter(r=>r[colB]>0&&r[colS]===0); sellList=data.filter(r=>r[colS]>0&&r[colB]===0); }
-    else { buyList=data.filter(r=>r['買%']>=pct); sellList=data.filter(r=>r['賣%']>=pct); }
-    buyList.sort((a,b)=>b[colB]-a[colB]); sellList.sort((a,b)=>b[colS]-a[colS]);
+    if(mode==='strict'){buyList=data.filter(r=>r[colB]>0&&r[colS]===0);sellList=data.filter(r=>r[colS]>0&&r[colB]===0)}
+    else{buyList=data.filter(r=>r['買%']>=pct);sellList=data.filter(r=>r['賣%']>=pct)}
+    buyList.sort((a,b)=>b[colB]-a[colB]);sellList.sort((a,b)=>b[colS]-a[colS]);
     showStatus('t3-status','');
     renderStockTable('t3-buy-wrap',buyList,colB,colS,brName,brInfo.br_id,`🔴 ${brName} 買進`,'buy');
     renderStockTable('t3-sell-wrap',sellList,colB,colS,brName,brInfo.br_id,`🟢 ${brName} 賣出`,'sell');
-  } catch(e){ showStatus('t3-status',e.message,'error'); }
+  }catch(e){showStatus('t3-status',e.message,'error')}
 };
 
 // ── TAB4 ──
-function switchToT4(sid,brName){
-  $('t4-sid').value=sid; $('t4-br').value=brName||'';
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelector('.nav-btn[data-tab=t4]').classList.add('active');
-  ['t1','t2','t3','t4','t5'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');
-  currentTab='t4'; drawChart();
-}
+function switchToT4(sid,brName){$('t4-sid').value=sid;$('t4-br').value=brName||'';document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.querySelector('.nav-btn[data-tab=t4]').classList.add('active');['t1','t2','t3','t4','t5'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');currentTab='t4';drawChart()}
 $('t4-draw-btn').onclick=drawChart;
 async function drawChart(){
-  const sid=$('t4-sid').value.trim().toUpperCase(),brName=$('t4-br').value.trim();
-  const brInfo=brName?brokerMap[brName]:null;
-  const periodVal=document.querySelector('input[name=t4-period]:checked').value;
-  const days=parseInt($('t4-days').value)||300,startY=$('t4-start').value;
-  const apiInterval=periodVal==='60m'?'60m':'1d';
-  const needBroker=brName&&brInfo;
-  if(brName&&!brInfo){ showStatus('t4-status','找不到分點資料','error'); return; }
-  showStatus('t4-status',`<div class="loading"><div class="spinner"></div>載入 ${sid} 資料中...</div>`);
-  $('chart-wrapper').style.display='none';
-  try {
+  const sid=$('t4-sid').value.trim().toUpperCase(),brName=$('t4-br').value.trim(),brInfo=brName?brokerMap[brName]:null;
+  const periodVal=document.querySelector('input[name=t4-period]:checked').value,days=parseInt($('t4-days').value)||300,startY=$('t4-start').value;
+  const apiInterval=periodVal==='60m'?'60m':'1d',needBroker=brName&&brInfo;
+  if(brName&&!brInfo){showStatus('t4-status','找不到分點資料','error');return}
+  showStatus('t4-status',`<div class="loading"><div class="spinner"></div>載入 ${sid} 資料中...</div>`);$('chart-wrapper').style.display='none';
+  try{
     const promises=[apiFetch(`/api/stock/kline?sid=${sid}&start=${startY}&interval=${apiInterval}`)];
-    if(needBroker) promises.push(apiFetch(`/api/stock/broker_history?sid=${sid}&br_id=${brInfo.br_id}&start=${startY}`));
-    const results=await Promise.all(promises);
-    const klineRes=results[0],histRes=needBroker?results[1]:null;
-    const kdata=klineRes.data||[];
-    if(histRes?.stock_name) lastStockName[sid]=histRes.stock_name;
-    const stockName=lastStockName[sid]||klineRes.stock_name||'';
-    const volMap={};
-    if(histRes) (histRes.records||[]).forEach(r=>{ volMap[r.Date]=r['買賣超']; });
+    if(needBroker)promises.push(apiFetch(`/api/stock/broker_history?sid=${sid}&br_id=${brInfo.br_id}&start=${startY}`));
+    const results=await Promise.all(promises),klineRes=results[0],histRes=needBroker?results[1]:null;
+    const kdata=klineRes.data||[];if(histRes?.stock_name)lastStockName[sid]=histRes.stock_name;
+    const stockName=lastStockName[sid]||klineRes.stock_name||'',volMap={};
+    if(histRes)(histRes.records||[]).forEach(r=>{volMap[r.Date]=r['買賣超']});
     const is60m=(periodVal==='60m');
     let merged=kdata.map(d=>({date:d.Date,open:d.Open,high:d.High,low:d.Low,close:d.Close,vol:volMap[d.Date]||0}));
-    if(!is60m){ if(periodVal==='W') merged=resampleWeekly(merged); else if(periodVal==='M') merged=resampleMonthly(merged); }
-    merged=calcBB(merged,52,2); merged=calcMACDFull(merged,12,26,9,'M1'); merged=calcMACDFull(merged,26,52,18,'M2');
+    if(!is60m){if(periodVal==='W')merged=resampleWeekly(merged);else if(periodVal==='M')merged=resampleMonthly(merged)}
+    merged=calcBB(merged,52,2);merged=calcMACDFull(merged,12,26,9,'M1');merged=calcMACDFull(merged,26,52,18,'M2');
     const {priceMarkers:pm1,macdMarkers:mm1}=getDivMarkers(merged,'M1_macd','M1_hist','S');
     const {priceMarkers:pm2,macdMarkers:mm2}=getDivMarkers(merged,'M2_macd','M2_hist','L');
-    const allPM=mergeMarkers([...pm1,...pm2]);
-    const plotData=merged.slice(-days);
+    const allPM=mergeMarkers([...pm1,...pm2]),plotData=merged.slice(-days);
     const plotDates=new Set(plotData.map(d=>d.date));
     const finalPM=allPM.filter(m=>plotDates.has(m.time)).sort((a,b)=>a.time>b.time?1:-1);
     const finalMM1=mm1.filter(m=>plotDates.has(m.time)).sort((a,b)=>a.time>b.time?1:-1);
     const finalMM2=mm2.filter(m=>plotDates.has(m.time)).sort((a,b)=>a.time>b.time?1:-1);
-    showStatus('t4-status','');
-    renderChart(plotData,finalPM,finalMM1,finalMM2,sid,stockName,brName||'無分點');
-  } catch(e){ showStatus('t4-status',e.message,'error'); }
+    showStatus('t4-status','');renderChart(plotData,finalPM,finalMM1,finalMM2,sid,stockName,brName||'無分點');
+  }catch(e){showStatus('t4-status',e.message,'error')}
 }
-function resampleWeekly(data){
-  const weeks={};
-  data.forEach(d=>{ const dt=new Date(d.date),day=dt.getDay(),fri=new Date(dt); fri.setDate(dt.getDate()+(5-day+7)%7); const key=fri.toISOString().split('T')[0];
-    if(!weeks[key]) weeks[key]={date:key,open:d.open,high:d.high,low:d.low,close:d.close,vol:0};
-    const w=weeks[key]; w.high=Math.max(w.high,d.high); w.low=Math.min(w.low,d.low); w.close=d.close; w.vol+=d.vol; });
-  return Object.values(weeks).sort((a,b)=>a.date>b.date?1:-1);
-}
-function resampleMonthly(data){
-  const months={};
-  data.forEach(d=>{ const key=d.date.slice(0,7);
-    if(!months[key]) months[key]={date:d.date,open:d.open,high:d.high,low:d.low,close:d.close,vol:0};
-    const m=months[key]; m.high=Math.max(m.high,d.high); m.low=Math.min(m.low,d.low); m.close=d.close; m.date=d.date; m.vol+=d.vol; });
-  return Object.values(months).sort((a,b)=>a.date>b.date?1:-1);
-}
-function ema(vals,span){ const k=2/(span+1),res=[]; vals.forEach((v,i)=>{ if(i===0) res.push(v); else res.push(v*k+res[i-1]*(1-k)); }); return res; }
-function calcMACDFull(data,fast,slow,signal,prefix){
-  const closes=data.map(d=>d.close),e1=ema(closes,fast),e2=ema(closes,slow);
-  const macdLine=e1.map((v,i)=>v-e2[i]),sigLine=ema(macdLine,signal);
-  data.forEach((d,i)=>{ d[prefix+'_macd']=macdLine[i]; d[prefix+'_sig']=sigLine[i]; d[prefix+'_hist']=macdLine[i]-sigLine[i]; });
-  return data;
-}
-function calcBB(data,w,mult){
-  for(let i=0;i<data.length;i++){
-    if(i<w-1){ data[i].bb_mid=null; data[i].bb_up=null; data[i].bb_dn=null; continue; }
-    const slice=data.slice(i-w+1,i+1).map(d=>d.close),mean=slice.reduce((a,b)=>a+b,0)/w;
-    const std=Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2,0)/w);
-    data[i].bb_mid=mean; data[i].bb_up=mean+mult*std; data[i].bb_dn=mean-mult*std;
-  }
-  return data;
-}
-function getDivMarkers(data,macdCol,histCol,prefix){
-  const priceMarkers=[],macdMarkers=[];
-  let curTopDif=0,curTopDate=null,curTopClose=0,prevTopDif=0,prevTopDate=null,prevTopClose=0,curWaveHigh=0;
-  let curBotDif=0,curBotDate=null,curBotClose=0,prevBotDif=0,prevBotDate=null,prevBotClose=0,curWaveLow=1e9;
-  let inRed=false,inGrn=false,topZeroBroken=false,botZeroBroken=false;
-  for(let i=1;i<data.length;i++){
-    const d=data[i],dp=data[i-1],hist=d[histCol],histPrev=dp[histCol],dif=d[macdCol],high=d.high,low=d.low,date=d.date;
-    const crossUp=histPrev<=0&&hist>0,crossDown=histPrev>=0&&hist<0;
-    if(crossUp){curTopDif=0;curTopDate=null;curTopClose=0;curWaveHigh=0;inRed=true;botZeroBroken=false;}
-    if(!inRed&&dif<0&&prevTopDif>0) topZeroBroken=true;
-    if(topZeroBroken&&crossUp){prevTopDif=0;prevTopDate=null;prevTopClose=0;topZeroBroken=false;}
-    if(crossDown){
-      inRed=false;
-      if(prevTopDate&&prevTopDif>0) macdMarkers.push({time:prevTopDate,position:'aboveBar',color:'#FFD600',shape:'text',text:prevTopDif.toFixed(2),size:1});
-      if(curTopDif>0&&prevTopDif>0&&curTopDif<prevTopDif&&curWaveHigh>=prevTopClose&&prevTopDate){ const lbl=curWaveHigh===prevTopClose?'价同':'價破'; priceMarkers.push({time:prevTopDate,position:'aboveBar',color:'#ef5350',shape:'arrowDown',text:`M${prefix}\n${lbl}\n${prevTopClose.toFixed(2)}`,price:prevTopClose}); }
-      if(curTopDif>0){prevTopDif=curTopDif;prevTopDate=curTopDate;prevTopClose=curTopClose;}
-      curTopDif=0;curTopDate=null;curTopClose=0;curWaveHigh=0;
-    }
-    if(hist>0){if(dif>curTopDif){curTopDif=dif;curTopDate=date;curTopClose=high;}if(high>curWaveHigh)curWaveHigh=high;}
-    if(crossDown){curBotDif=0;curBotDate=null;curBotClose=0;curWaveLow=1e9;inGrn=true;topZeroBroken=false;}
-    if(!inGrn&&dif>0&&prevBotDif<0) botZeroBroken=true;
-    if(botZeroBroken&&crossDown){prevBotDif=0;prevBotDate=null;prevBotClose=0;botZeroBroken=false;}
-    if(crossUp){
-      inGrn=false;
-      if(prevBotDate&&prevBotDif<0) macdMarkers.push({time:prevBotDate,position:'belowBar',color:'#00E676',shape:'text',text:prevBotDif.toFixed(2),size:1});
-      if(curBotDif<0&&prevBotDif<0&&curBotDif>prevBotDif&&curWaveLow<=prevBotClose&&prevBotDate){ const lbl=curWaveLow===prevBotClose?'价同':'價破'; priceMarkers.push({time:prevBotDate,position:'belowBar',color:'#26a69a',shape:'arrowUp',text:`W${prefix}\n${lbl}\n${prevBotClose.toFixed(2)}`,price:prevBotClose}); }
-      if(curBotDif<0){prevBotDif=curBotDif;prevBotDate=curBotDate;prevBotClose=curBotClose;}
-      curBotDif=0;curBotDate=null;curBotClose=0;curWaveLow=1e9;
-    }
-    if(hist<0){if(dif<curBotDif){curBotDif=dif;curBotDate=date;curBotClose=low;}if(low<curWaveLow)curWaveLow=low;}
-    if(i===data.length-1){
-      if(hist>0&&curTopDif>0&&prevTopDif>0){ if(prevTopDate) macdMarkers.push({time:prevTopDate,position:'aboveBar',color:'#FFD600',shape:'text',text:prevTopDif.toFixed(2),size:1}); if(curTopDif<prevTopDif&&curWaveHigh>=prevTopClose&&prevTopDate) priceMarkers.push({time:prevTopDate,position:'aboveBar',color:'#ef5350',shape:'arrowDown',text:`未M${prefix}\n${curWaveHigh===prevTopClose?'价同':'價破'}\n${prevTopClose.toFixed(2)}`,price:prevTopClose}); }
-      if(hist<0&&curBotDif<0&&prevBotDif<0){ if(prevBotDate) macdMarkers.push({time:prevBotDate,position:'belowBar',color:'#00E676',shape:'text',text:prevBotDif.toFixed(2),size:1}); if(curBotDif>prevBotDif&&curWaveLow<=prevBotClose&&prevBotDate) priceMarkers.push({time:prevBotDate,position:'belowBar',color:'#26a69a',shape:'arrowUp',text:`未W${prefix}\n${curWaveLow===prevBotClose?'价同':'價破'}\n${prevBotClose.toFixed(2)}`,price:prevBotClose}); }
-    }
-  }
-  function dedup(lst){const seen=new Set(),out=[];[...lst].reverse().forEach(m=>{const k=m.time+'_'+m.text;if(!seen.has(k)){seen.add(k);out.push(m);}});return out.reverse();}
-  return {priceMarkers:dedup(priceMarkers),macdMarkers:dedup(macdMarkers)};
-}
-function mergeMarkers(markers){
-  const merged={};
-  markers.forEach(m=>{ if(!merged[m.time]) merged[m.time]={...m}; else merged[m.time].text+='\n---\n'+m.text; });
-  return Object.values(merged).sort((a,b)=>a.time>b.time?1:-1);
-}
-function renderChart(plotData,priceMarkers,macdMarkers1,macdMarkers2,sid,stockName,brName){
-  $('chart-wrapper').style.display='block';
-  if(currentChart){ try{currentChart.remove();}catch(e){} currentChart=null; }
-  requestAnimationFrame(()=>requestAnimationFrame(()=>_doRenderChart(plotData,priceMarkers,macdMarkers1,macdMarkers2,sid,stockName,brName)));
-}
-function _doRenderChart(plotData,priceMarkers,macdMarkers1,macdMarkers2,sid,stockName,brName){
-  const container=$('chart-container'); container.innerHTML='';
-  const w=container.clientWidth||window.innerWidth,h=container.clientHeight||Math.max(400,window.innerHeight-280);
-  const isMobile=window.innerWidth<=768;
-  const chart=LightweightCharts.createChart(container,{layout:{backgroundColor:'#0e1117',textColor:'#d1d4dc'},watermark:{color:'rgba(255,255,255,0.06)',visible:true,text:`${sid} ${stockName}`,fontSize:isMobile?40:60,horzAlign:'center',vertAlign:'center'},grid:{vertLines:{visible:false},horzLines:{visible:false}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},width:w,height:h});
-  currentChart=chart;
-  chart.priceScale('right').applyOptions({scaleMargins:{top:0.02,bottom:0.45}});
-  const kSeries=chart.addCandlestickSeries({upColor:'#ef5350',downColor:'#26a69a',borderVisible:false,wickUpColor:'#ef5350',wickDownColor:'#26a69a',priceLineVisible:false});
-  kSeries.setData(plotData.map(d=>({time:d.date,open:d.open,high:d.high,low:d.low,close:d.close})));
-  kSeries.setMarkers(priceMarkers);
-  const lastTime=plotData[plotData.length-1].date;
-  priceMarkers.forEach(m=>{ if(m.price===undefined) return; const lc=m.color==='#ef5350'?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'; const ls=chart.addLineSeries({color:lc,lineWidth:2,lineStyle:1,lastValueVisible:false,priceLineVisible:false,crosshairMarkerVisible:false}); ls.setData(m.time===lastTime?[{time:m.time,value:m.price}]:[{time:m.time,value:m.price},{time:lastTime,value:m.price}]); });
-  const bbMid=chart.addLineSeries({color:'#FFD600',lineWidth:1,crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
-  bbMid.setData(plotData.filter(d=>d.bb_mid!=null).map(d=>({time:d.date,value:d.bb_mid})));
-  const bbUp=chart.addLineSeries({color:'rgba(255,255,255,0.35)',lineWidth:1,lineStyle:2,crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
-  bbUp.setData(plotData.filter(d=>d.bb_up!=null).map(d=>({time:d.date,value:d.bb_up})));
-  const bbDn=chart.addLineSeries({color:'rgba(255,255,255,0.35)',lineWidth:1,lineStyle:2,crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
-  bbDn.setData(plotData.filter(d=>d.bb_dn!=null).map(d=>({time:d.date,value:d.bb_dn})));
-  const volS=chart.addHistogramSeries({priceScaleId:'vol',lastValueVisible:false,priceLineVisible:false});
-  volS.setData(plotData.map(d=>({time:d.date,value:d.vol,color:d.vol>0?'rgba(239,83,80,0.8)':d.vol<0?'rgba(38,166,154,0.8)':'rgba(120,120,120,0.5)'})));
-  chart.priceScale('vol').applyOptions({scaleMargins:{top:0.55,bottom:0.35},visible:false});
-  const h1s=chart.addHistogramSeries({priceScaleId:'m1',lastValueVisible:false,priceLineVisible:false});
-  h1s.setData(plotData.map(d=>({time:d.date,value:d.M1_hist,color:d.M1_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));
-  const m1s=chart.addLineSeries({color:'#FFD600',lineWidth:1,priceScaleId:'m1',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
-  m1s.setData(plotData.map(d=>({time:d.date,value:d.M1_macd}))); m1s.setMarkers(macdMarkers1);
-  const s1s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m1',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
-  s1s.setData(plotData.map(d=>({time:d.date,value:d.M1_sig})));
-  chart.priceScale('m1').applyOptions({scaleMargins:{top:0.62,bottom:0.25},visible:false});
-  const h2s=chart.addHistogramSeries({priceScaleId:'m2',lastValueVisible:false,priceLineVisible:false});
-  h2s.setData(plotData.map(d=>({time:d.date,value:d.M2_hist,color:d.M2_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));
-  const m2s=chart.addLineSeries({color:'#FFD600',lineWidth:1,priceScaleId:'m2',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
-  m2s.setData(plotData.map(d=>({time:d.date,value:d.M2_macd}))); m2s.setMarkers(macdMarkers2);
-  const s2s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m2',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});
-  s2s.setData(plotData.map(d=>({time:d.date,value:d.M2_sig})));
-  chart.priceScale('m2').applyOptions({scaleMargins:{top:0.80,bottom:0.02},visible:false});
-  const dictByTime={};
-  plotData.forEach(d=>dictByTime[d.date]=d);
-  const legend=$('chart-legend');
-  const DOW=['日','一','二','三','四','五','六'];
-  function updateLegend(d){
-    if(!d) return;
-    const vc=d.vol>=0?'#ef5350':'#26a69a';
-    let dateLabel,dowLabel;
-    if(typeof d.date==='number'){ const dt=new Date(d.date*1000); dateLabel=dt.toLocaleString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); dowLabel=DOW[dt.getDay()]; }
-    else { dateLabel=d.date; dowLabel=DOW[new Date(d.date+'T00:00:00').getDay()]; }
-    legend.innerHTML=`<div class="legend-title">${sid} ${stockName} | ${dateLabel} 週${dowLabel}</div><div class="legend-row"><span class="legend-lbl">開盤</span><span>${(d.open??0).toFixed(2)}</span></div><div class="legend-row"><span class="legend-lbl">最高</span><span style="color:#ef5350">${(d.high??0).toFixed(2)}</span></div><div class="legend-row"><span class="legend-lbl">最低</span><span style="color:#26a69a">${(d.low??0).toFixed(2)}</span></div><div class="legend-row"><span class="legend-lbl">收盤</span><span style="font-weight:700">${(d.close??0).toFixed(2)}</span></div><div class="legend-vol">買賣(${brName}) <span style="color:${vc};font-weight:700">${d.vol} 張</span></div><div class="legend-macd">短 MACD: 柱 <span style="color:${(d.M1_hist??0)>=0?'#ef5350':'#26a69a'}">${(d.M1_hist??0).toFixed(2)}</span> | 快 <span style="color:#FFD600">${(d.M1_macd??0).toFixed(2)}</span> | 慢 <span style="color:#00E676">${(d.M1_sig??0).toFixed(2)}</span></div><div class="legend-macd">長 MACD: 柱 <span style="color:${(d.M2_hist??0)>=0?'#ef5350':'#26a69a'}">${(d.M2_hist??0).toFixed(2)}</span> | 快 <span style="color:#FFD600">${(d.M2_macd??0).toFixed(2)}</span> | 慢 <span style="color:#00E676">${(d.M2_sig??0).toFixed(2)}</span></div>`;
-  }
-  legend.style.display='none';
-  chart.subscribeCrosshairMove(param=>{
-    if(!param.time||param.point===undefined||param.point.x<0||param.point.y<0){ legend.style.display='none'; return; }
-    let timeStr=param.time;
-    if(typeof timeStr==='object'&&timeStr.year) timeStr=timeStr.year+'-'+String(timeStr.month).padStart(2,'0')+'-'+String(timeStr.day).padStart(2,'0');
-    const d=dictByTime[timeStr]||dictByTime[param.time];
-    if(d){ legend.style.display='block'; updateLegend(d); }
-  });
-  container.addEventListener('touchmove',e=>{ e.preventDefault(); const touch=e.touches[0],rect=container.getBoundingClientRect(),x=touch.clientX-rect.left,logical=chart.timeScale().coordinateToLogical(x); if(logical===null) return; const idx=Math.max(0,Math.min(Math.round(logical),plotData.length-1)); if(plotData[idx]){ legend.style.display='block'; updateLegend(plotData[idx]); } },{passive:false});
-  container.addEventListener('touchend',()=>{ setTimeout(()=>{ legend.style.display='none'; },1500); });
-  new ResizeObserver(()=>{ if(currentChart){ currentChart.applyOptions({width:container.clientWidth||window.innerWidth,height:container.clientHeight||400}); currentChart.timeScale().fitContent(); } }).observe(container);
-  setTimeout(()=>{ if(currentChart) currentChart.timeScale().fitContent(); },200);
-  currentChart=chart;
-}
+function resampleWeekly(data){const weeks={};data.forEach(d=>{const dt=new Date(d.date),day=dt.getDay(),fri=new Date(dt);fri.setDate(dt.getDate()+(5-day+7)%7);const key=fri.toISOString().split('T')[0];if(!weeks[key])weeks[key]={date:key,open:d.open,high:d.high,low:d.low,close:d.close,vol:0};const w=weeks[key];w.high=Math.max(w.high,d.high);w.low=Math.min(w.low,d.low);w.close=d.close;w.vol+=d.vol});return Object.values(weeks).sort((a,b)=>a.date>b.date?1:-1)}
+function resampleMonthly(data){const months={};data.forEach(d=>{const key=d.date.slice(0,7);if(!months[key])months[key]={date:d.date,open:d.open,high:d.high,low:d.low,close:d.close,vol:0};const m=months[key];m.high=Math.max(m.high,d.high);m.low=Math.min(m.low,d.low);m.close=d.close;m.date=d.date;m.vol+=d.vol});return Object.values(months).sort((a,b)=>a.date>b.date?1:-1)}
+function ema(vals,span){const k=2/(span+1),res=[];vals.forEach((v,i)=>{if(i===0)res.push(v);else res.push(v*k+res[i-1]*(1-k))});return res}
+function calcMACDFull(data,fast,slow,signal,prefix){const closes=data.map(d=>d.close),e1=ema(closes,fast),e2=ema(closes,slow),macdLine=e1.map((v,i)=>v-e2[i]),sigLine=ema(macdLine,signal);data.forEach((d,i)=>{d[prefix+'_macd']=macdLine[i];d[prefix+'_sig']=sigLine[i];d[prefix+'_hist']=macdLine[i]-sigLine[i]});return data}
+function calcBB(data,w,mult){for(let i=0;i<data.length;i++){if(i<w-1){data[i].bb_mid=null;data[i].bb_up=null;data[i].bb_dn=null;continue}const slice=data.slice(i-w+1,i+1).map(d=>d.close),mean=slice.reduce((a,b)=>a+b,0)/w,std=Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2,0)/w);data[i].bb_mid=mean;data[i].bb_up=mean+mult*std;data[i].bb_dn=mean-mult*std}return data}
+function getDivMarkers(data,macdCol,histCol,prefix){const priceMarkers=[],macdMarkers=[];let curTopDif=0,curTopDate=null,curTopClose=0,prevTopDif=0,prevTopDate=null,prevTopClose=0,curWaveHigh=0,curBotDif=0,curBotDate=null,curBotClose=0,prevBotDif=0,prevBotDate=null,prevBotClose=0,curWaveLow=1e9,inRed=false,inGrn=false,topZeroBroken=false,botZeroBroken=false;for(let i=1;i<data.length;i++){const d=data[i],dp=data[i-1],hist=d[histCol],histPrev=dp[histCol],dif=d[macdCol],high=d.high,low=d.low,date=d.date,crossUp=histPrev<=0&&hist>0,crossDown=histPrev>=0&&hist<0;if(crossUp){curTopDif=0;curTopDate=null;curTopClose=0;curWaveHigh=0;inRed=true;botZeroBroken=false}if(!inRed&&dif<0&&prevTopDif>0)topZeroBroken=true;if(topZeroBroken&&crossUp){prevTopDif=0;prevTopDate=null;prevTopClose=0;topZeroBroken=false}if(crossDown){inRed=false;if(prevTopDate&&prevTopDif>0)macdMarkers.push({time:prevTopDate,position:'aboveBar',color:'#FFD600',shape:'text',text:prevTopDif.toFixed(2),size:1});if(curTopDif>0&&prevTopDif>0&&curTopDif<prevTopDif&&curWaveHigh>=prevTopClose&&prevTopDate){const lbl=curWaveHigh===prevTopClose?'价同':'價破';priceMarkers.push({time:prevTopDate,position:'aboveBar',color:'#ef5350',shape:'arrowDown',text:`M${prefix}\n${lbl}\n${prevTopClose.toFixed(2)}`,price:prevTopClose})}if(curTopDif>0){prevTopDif=curTopDif;prevTopDate=curTopDate;prevTopClose=curTopClose}curTopDif=0;curTopDate=null;curTopClose=0;curWaveHigh=0}if(hist>0){if(dif>curTopDif){curTopDif=dif;curTopDate=date;curTopClose=high}if(high>curWaveHigh)curWaveHigh=high}if(crossDown){curBotDif=0;curBotDate=null;curBotClose=0;curWaveLow=1e9;inGrn=true;topZeroBroken=false}if(!inGrn&&dif>0&&prevBotDif<0)botZeroBroken=true;if(botZeroBroken&&crossDown){prevBotDif=0;prevBotDate=null;prevBotClose=0;botZeroBroken=false}if(crossUp){inGrn=false;if(prevBotDate&&prevBotDif<0)macdMarkers.push({time:prevBotDate,position:'belowBar',color:'#00E676',shape:'text',text:prevBotDif.toFixed(2),size:1});if(curBotDif<0&&prevBotDif<0&&curBotDif>prevBotDif&&curWaveLow<=prevBotClose&&prevBotDate){const lbl=curWaveLow===prevBotClose?'价同':'價破';priceMarkers.push({time:prevBotDate,position:'belowBar',color:'#26a69a',shape:'arrowUp',text:`W${prefix}\n${lbl}\n${prevBotClose.toFixed(2)}`,price:prevBotClose})}if(curBotDif<0){prevBotDif=curBotDif;prevBotDate=curBotDate;prevBotClose=curBotClose}curBotDif=0;curBotDate=null;curBotClose=0;curWaveLow=1e9}if(hist<0){if(dif<curBotDif){curBotDif=dif;curBotDate=date;curBotClose=low}if(low<curWaveLow)curWaveLow=low}if(i===data.length-1){if(hist>0&&curTopDif>0&&prevTopDif>0){if(prevTopDate)macdMarkers.push({time:prevTopDate,position:'aboveBar',color:'#FFD600',shape:'text',text:prevTopDif.toFixed(2),size:1});if(curTopDif<prevTopDif&&curWaveHigh>=prevTopClose&&prevTopDate)priceMarkers.push({time:prevTopDate,position:'aboveBar',color:'#ef5350',shape:'arrowDown',text:`未M${prefix}\n${curWaveHigh===prevTopClose?'价同':'價破'}\n${prevTopClose.toFixed(2)}`,price:prevTopClose})}if(hist<0&&curBotDif<0&&prevBotDif<0){if(prevBotDate)macdMarkers.push({time:prevBotDate,position:'belowBar',color:'#00E676',shape:'text',text:prevBotDif.toFixed(2),size:1});if(curBotDif>prevBotDif&&curWaveLow<=prevBotClose&&prevBotDate)priceMarkers.push({time:prevBotDate,position:'belowBar',color:'#26a69a',shape:'arrowUp',text:`未W${prefix}\n${curWaveLow===prevBotClose?'价同':'價破'}\n${prevBotClose.toFixed(2)}`,price:prevBotClose})}}}function dedup(lst){const seen=new Set(),out=[];[...lst].reverse().forEach(m=>{const k=m.time+'_'+m.text;if(!seen.has(k)){seen.add(k);out.push(m)}});return out.reverse()}return{priceMarkers:dedup(priceMarkers),macdMarkers:dedup(macdMarkers)}}
+function mergeMarkers(markers){const merged={};markers.forEach(m=>{if(!merged[m.time])merged[m.time]={...m};else merged[m.time].text+='\n---\n'+m.text});return Object.values(merged).sort((a,b)=>a.time>b.time?1:-1)}
+function renderChart(plotData,priceMarkers,macdMarkers1,macdMarkers2,sid,stockName,brName){$('chart-wrapper').style.display='block';if(currentChart){try{currentChart.remove()}catch(e){}currentChart=null}requestAnimationFrame(()=>requestAnimationFrame(()=>_doRenderChart(plotData,priceMarkers,macdMarkers1,macdMarkers2,sid,stockName,brName)))}
+function _doRenderChart(plotData,priceMarkers,macdMarkers1,macdMarkers2,sid,stockName,brName){const container=$('chart-container');container.innerHTML='';const w=container.clientWidth||window.innerWidth,h=container.clientHeight||Math.max(400,window.innerHeight-280),isMobile=window.innerWidth<=768;const chart=LightweightCharts.createChart(container,{layout:{backgroundColor:'#0e1117',textColor:'#d1d4dc'},watermark:{color:'rgba(255,255,255,0.06)',visible:true,text:`${sid} ${stockName}`,fontSize:isMobile?40:60,horzAlign:'center',vertAlign:'center'},grid:{vertLines:{visible:false},horzLines:{visible:false}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},width:w,height:h});currentChart=chart;chart.priceScale('right').applyOptions({scaleMargins:{top:0.02,bottom:0.45}});const kSeries=chart.addCandlestickSeries({upColor:'#ef5350',downColor:'#26a69a',borderVisible:false,wickUpColor:'#ef5350',wickDownColor:'#26a69a',priceLineVisible:false});kSeries.setData(plotData.map(d=>({time:d.date,open:d.open,high:d.high,low:d.low,close:d.close})));kSeries.setMarkers(priceMarkers);const lastTime=plotData[plotData.length-1].date;priceMarkers.forEach(m=>{if(m.price===undefined)return;const lc=m.color==='#ef5350'?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)';const ls=chart.addLineSeries({color:lc,lineWidth:2,lineStyle:1,lastValueVisible:false,priceLineVisible:false,crosshairMarkerVisible:false});ls.setData(m.time===lastTime?[{time:m.time,value:m.price}]:[{time:m.time,value:m.price},{time:lastTime,value:m.price}])});const bbMid=chart.addLineSeries({color:'#FFD600',lineWidth:1,crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});bbMid.setData(plotData.filter(d=>d.bb_mid!=null).map(d=>({time:d.date,value:d.bb_mid})));const bbUp=chart.addLineSeries({color:'rgba(255,255,255,0.35)',lineWidth:1,lineStyle:2,crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});bbUp.setData(plotData.filter(d=>d.bb_up!=null).map(d=>({time:d.date,value:d.bb_up})));const bbDn=chart.addLineSeries({color:'rgba(255,255,255,0.35)',lineWidth:1,lineStyle:2,crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});bbDn.setData(plotData.filter(d=>d.bb_dn!=null).map(d=>({time:d.date,value:d.bb_dn})));const volS=chart.addHistogramSeries({priceScaleId:'vol',lastValueVisible:false,priceLineVisible:false});volS.setData(plotData.map(d=>({time:d.date,value:d.vol,color:d.vol>0?'rgba(239,83,80,0.8)':d.vol<0?'rgba(38,166,154,0.8)':'rgba(120,120,120,0.5)'})));chart.priceScale('vol').applyOptions({scaleMargins:{top:0.55,bottom:0.35},visible:false});const h1s=chart.addHistogramSeries({priceScaleId:'m1',lastValueVisible:false,priceLineVisible:false});h1s.setData(plotData.map(d=>({time:d.date,value:d.M1_hist,color:d.M1_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));const m1s=chart.addLineSeries({color:'#FFD600',lineWidth:1,priceScaleId:'m1',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});m1s.setData(plotData.map(d=>({time:d.date,value:d.M1_macd})));m1s.setMarkers(macdMarkers1);const s1s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m1',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});s1s.setData(plotData.map(d=>({time:d.date,value:d.M1_sig})));chart.priceScale('m1').applyOptions({scaleMargins:{top:0.62,bottom:0.25},visible:false});const h2s=chart.addHistogramSeries({priceScaleId:'m2',lastValueVisible:false,priceLineVisible:false});h2s.setData(plotData.map(d=>({time:d.date,value:d.M2_hist,color:d.M2_hist>=0?'rgba(239,83,80,0.5)':'rgba(38,166,154,0.5)'})));const m2s=chart.addLineSeries({color:'#FFD600',lineWidth:1,priceScaleId:'m2',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});m2s.setData(plotData.map(d=>({time:d.date,value:d.M2_macd})));m2s.setMarkers(macdMarkers2);const s2s=chart.addLineSeries({color:'#00E676',lineWidth:1,priceScaleId:'m2',crosshairMarkerVisible:false,lastValueVisible:false,priceLineVisible:false});s2s.setData(plotData.map(d=>({time:d.date,value:d.M2_sig})));chart.priceScale('m2').applyOptions({scaleMargins:{top:0.80,bottom:0.02},visible:false});const dictByTime={};plotData.forEach(d=>dictByTime[d.date]=d);const legend=$('chart-legend'),DOW=['日','一','二','三','四','五','六'];function updateLegend(d){if(!d)return;const vc=d.vol>=0?'#ef5350':'#26a69a';let dateLabel,dowLabel;if(typeof d.date==='number'){const dt=new Date(d.date*1000);dateLabel=dt.toLocaleString('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});dowLabel=DOW[dt.getDay()]}else{dateLabel=d.date;dowLabel=DOW[new Date(d.date+'T00:00:00').getDay()]}legend.innerHTML=`<div class="legend-title">${sid} ${stockName} | ${dateLabel} 週${dowLabel}</div><div class="legend-row"><span class="legend-lbl">開盤</span><span>${(d.open??0).toFixed(2)}</span></div><div class="legend-row"><span class="legend-lbl">最高</span><span style="color:#ef5350">${(d.high??0).toFixed(2)}</span></div><div class="legend-row"><span class="legend-lbl">最低</span><span style="color:#26a69a">${(d.low??0).toFixed(2)}</span></div><div class="legend-row"><span class="legend-lbl">收盤</span><span style="font-weight:700">${(d.close??0).toFixed(2)}</span></div><div class="legend-vol">買賣(${brName}) <span style="color:${vc};font-weight:700">${d.vol} 張</span></div><div class="legend-macd">短 MACD: 柱 <span style="color:${(d.M1_hist??0)>=0?'#ef5350':'#26a69a'}">${(d.M1_hist??0).toFixed(2)}</span> | 快 <span style="color:#FFD600">${(d.M1_macd??0).toFixed(2)}</span> | 慢 <span style="color:#00E676">${(d.M1_sig??0).toFixed(2)}</span></div><div class="legend-macd">長 MACD: 柱 <span style="color:${(d.M2_hist??0)>=0?'#ef5350':'#26a69a'}">${(d.M2_hist??0).toFixed(2)}</span> | 快 <span style="color:#FFD600">${(d.M2_macd??0).toFixed(2)}</span> | 慢 <span style="color:#00E676">${(d.M2_sig??0).toFixed(2)}</span></div>`}legend.style.display='none';chart.subscribeCrosshairMove(param=>{if(!param.time||param.point===undefined||param.point.x<0||param.point.y<0){legend.style.display='none';return}let timeStr=param.time;if(typeof timeStr==='object'&&timeStr.year)timeStr=timeStr.year+'-'+String(timeStr.month).padStart(2,'0')+'-'+String(timeStr.day).padStart(2,'0');const d=dictByTime[timeStr]||dictByTime[param.time];if(d){legend.style.display='block';updateLegend(d)}});container.addEventListener('touchmove',e=>{e.preventDefault();const touch=e.touches[0],rect=container.getBoundingClientRect(),x=touch.clientX-rect.left,logical=chart.timeScale().coordinateToLogical(x);if(logical===null)return;const idx=Math.max(0,Math.min(Math.round(logical),plotData.length-1));if(plotData[idx]){legend.style.display='block';updateLegend(plotData[idx])}},{passive:false});container.addEventListener('touchend',()=>{setTimeout(()=>{legend.style.display='none'},1500)});new ResizeObserver(()=>{if(currentChart){currentChart.applyOptions({width:container.clientWidth||window.innerWidth,height:container.clientHeight||400});currentChart.timeScale().fitContent()}}).observe(container);setTimeout(()=>{if(currentChart)currentChart.timeScale().fitContent()},200);currentChart=chart}
 
 // ── WATCHLIST ──
-async function loadWatchlist(){ try{ watchlist=await apiFetch('/api/watchlist'); }catch(e){ watchlist=[]; } }
-async function saveWatchlist(){ try{ await apiFetch('/api/watchlist',{method:'POST',body:JSON.stringify({items:watchlist})}); }catch(e){} }
-async function loadWorkingGroup(){ try{ workingGroup=await apiFetch('/api/working_group'); }catch(e){ workingGroup=[]; } }
-async function saveWorkingGroup(){ try{ await apiFetch('/api/working_group',{method:'POST',body:JSON.stringify({items:workingGroup})}); }catch(e){} }
-function updateCounts(){ $('wl-count').textContent=`(${watchlist.length})`; $('wg-count').textContent=`(${workingGroup.length})`; }
-function renderWatchlist(){
-  updateCounts(); const wrap=$('wl-table-wrap');
-  if(!watchlist.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.85rem;padding:8px 0">最愛清單為空</div>'; return; }
-  const tbl=el('table',{class:'wl-table'}),thead=el('thead');
-  thead.appendChild(tr(th('載入繪圖'),th('代號'),th('名稱'),th('追蹤分點'),th('筆記'),th('刪除')));
-  tbl.appendChild(thead); const tbody=el('tbody');
-  watchlist.forEach((item,i)=>{
-    const loadCb=el('input',{type:'checkbox'}); loadCb.onchange=()=>{ if(loadCb.checked){ switchToT4(item['股票代號'],item['追蹤分點']); loadCb.checked=false; } };
-    const noteInput=el('input',{class:'note-input',type:'text',placeholder:'點擊編輯...'}); noteInput.value=item['筆記']||''; noteInput.onblur=async()=>{ watchlist[i]['筆記']=noteInput.value; await saveWatchlist(); };
-    const delCb=el('input',{type:'checkbox'}); delCb.onchange=async()=>{ if(delCb.checked){ watchlist.splice(i,1); await saveWatchlist(); renderWatchlist(); } };
-    const noteTd=el('td'); noteTd.appendChild(noteInput);
-    tbody.appendChild(tr(td(loadCb),td({text:item['股票代號']}),td({text:item['股票名稱']||''}),td({text:item['追蹤分點']}),noteTd,td(delCb)));
-  });
-  tbl.appendChild(tbody); wrap.innerHTML=''; wrap.appendChild(tbl);
-}
-function renderWorkingGroup(){
-  updateCounts(); const wrap=$('wg-table-wrap');
-  if(!workingGroup.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.85rem;padding:8px 0">工作組為空。</div>'; return; }
-  const tbl=el('table',{class:'wl-table'}),thead=el('thead');
-  thead.appendChild(tr(th('載入繪圖'),th('⭐存愛'),th('代號'),th('名稱'),th('追蹤分點'),th('移除')));
-  tbl.appendChild(thead); const tbody=el('tbody'); const saveCbs=[];
-  workingGroup.forEach((item,i)=>{
-    const loadCb=el('input',{type:'checkbox'}); loadCb.onchange=()=>{ if(loadCb.checked){ switchToT4(item['股票代號'],item['追蹤分點']); loadCb.checked=false; } };
-    const saveCb=el('input',{type:'checkbox'}); saveCbs.push(saveCb);
-    const delCb=el('input',{type:'checkbox'}); delCb.onchange=async()=>{ if(delCb.checked){ workingGroup.splice(i,1); await saveWorkingGroup(); renderWorkingGroup(); } };
-    tbody.appendChild(tr(td(loadCb),td(saveCb),td({text:item['股票代號']}),td({text:item['股票名稱']||''}),td({text:item['追蹤分點']}),td(delCb)));
-  });
-  tbl.appendChild(tbody); wrap.innerHTML=''; wrap.appendChild(tbl);
-  $('wg-fav-btn').onclick=async()=>{
-    const toAdd=workingGroup.filter((_,i)=>saveCbs[i]?.checked);
-    if(!toAdd.length){ alert('請先勾選 ⭐ 存愛 欄位'); return; }
-    let added=0;
-    toAdd.forEach(item=>{ if(!watchlist.find(w=>w['股票代號']===item['股票代號']&&w['追蹤分點']===item['追蹤分點'])){ watchlist.push({...item,筆記:''}); added++; } });
-    if(added){ await saveWatchlist(); renderWatchlist(); alert(`✅ 已存入 ${added} 檔到最愛`); } else alert('全部已在最愛清單中');
-  };
-}
-$('wg-clear-btn').onclick=async()=>{ if(!confirm('確定清空工作組？')) return; workingGroup=[]; await saveWorkingGroup(); renderWorkingGroup(); };
-$('t4-fav-btn').onclick=async()=>{
-  const sid=$('t4-sid').value.trim().toUpperCase(),brName=$('t4-br').value,sname=lastStockName[sid]||'';
-  if(!watchlist.find(w=>w['股票代號']===sid&&w['追蹤分點']===brName)){
-    watchlist.push({'股票代號':sid,'股票名稱':sname,'追蹤分點':brName,'筆記':''}); await saveWatchlist(); renderWatchlist();
-    showStatus('t4-status','✅ 已存入最愛清單','success'); setTimeout(()=>showStatus('t4-status',''),2000);
-  } else { showStatus('t4-status','⚠️ 此組合已在最愛清單中','info'); setTimeout(()=>showStatus('t4-status',''),2000); }
-};
+async function loadWatchlist(){try{watchlist=await apiFetch('/api/watchlist')}catch(e){watchlist=[]}}
+async function saveWatchlist(){try{await apiFetch('/api/watchlist',{method:'POST',body:JSON.stringify({items:watchlist})})}catch(e){}}
+async function loadWorkingGroup(){try{workingGroup=await apiFetch('/api/working_group')}catch(e){workingGroup=[]}}
+async function saveWorkingGroup(){try{await apiFetch('/api/working_group',{method:'POST',body:JSON.stringify({items:workingGroup})})}catch(e){}}
+function updateCounts(){$('wl-count').textContent=`(${watchlist.length})`;$('wg-count').textContent=`(${workingGroup.length})`}
+function renderWatchlist(){updateCounts();const wrap=$('wl-table-wrap');if(!watchlist.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.85rem;padding:8px 0">最愛清單為空</div>';return}const tbl=el('table',{class:'wl-table'}),thead=el('thead');thead.appendChild(tr(th('載入繪圖'),th('代號'),th('名稱'),th('追蹤分點'),th('筆記'),th('刪除')));tbl.appendChild(thead);const tbody=el('tbody');watchlist.forEach((item,i)=>{const loadCb=el('input',{type:'checkbox'});loadCb.onchange=()=>{if(loadCb.checked){switchToT4(item['股票代號'],item['追蹤分點']);loadCb.checked=false}};const noteInput=el('input',{class:'note-input',type:'text',placeholder:'點擊編輯...'});noteInput.value=item['筆記']||'';noteInput.onblur=async()=>{watchlist[i]['筆記']=noteInput.value;await saveWatchlist()};const delCb=el('input',{type:'checkbox'});delCb.onchange=async()=>{if(delCb.checked){watchlist.splice(i,1);await saveWatchlist();renderWatchlist()}};const noteTd=el('td');noteTd.appendChild(noteInput);tbody.appendChild(tr(td(loadCb),td({text:item['股票代號']}),td({text:item['股票名稱']||''}),td({text:item['追蹤分點']}),noteTd,td(delCb)))});tbl.appendChild(tbody);wrap.innerHTML='';wrap.appendChild(tbl)}
+function renderWorkingGroup(){updateCounts();const wrap=$('wg-table-wrap');if(!workingGroup.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.85rem;padding:8px 0">工作組為空。</div>';return}const tbl=el('table',{class:'wl-table'}),thead=el('thead');thead.appendChild(tr(th('載入繪圖'),th('⭐存愛'),th('代號'),th('名稱'),th('追蹤分點'),th('移除')));tbl.appendChild(thead);const tbody=el('tbody');const saveCbs=[];workingGroup.forEach((item,i)=>{const loadCb=el('input',{type:'checkbox'});loadCb.onchange=()=>{if(loadCb.checked){switchToT4(item['股票代號'],item['追蹤分點']);loadCb.checked=false}};const saveCb=el('input',{type:'checkbox'});saveCbs.push(saveCb);const delCb=el('input',{type:'checkbox'});delCb.onchange=async()=>{if(delCb.checked){workingGroup.splice(i,1);await saveWorkingGroup();renderWorkingGroup()}};tbody.appendChild(tr(td(loadCb),td(saveCb),td({text:item['股票代號']}),td({text:item['股票名稱']||''}),td({text:item['追蹤分點']}),td(delCb)))});tbl.appendChild(tbody);wrap.innerHTML='';wrap.appendChild(tbl);$('wg-fav-btn').onclick=async()=>{const toAdd=workingGroup.filter((_,i)=>saveCbs[i]?.checked);if(!toAdd.length){alert('請先勾選 ⭐ 存愛 欄位');return}let added=0;toAdd.forEach(item=>{if(!watchlist.find(w=>w['股票代號']===item['股票代號']&&w['追蹤分點']===item['追蹤分點'])){watchlist.push({...item,筆記:''});added++}});if(added){await saveWatchlist();renderWatchlist();alert(`✅ 已存入 ${added} 檔到最愛`)}else alert('全部已在最愛清單中')}}
+$('wg-clear-btn').onclick=async()=>{if(!confirm('確定清空工作組？'))return;workingGroup=[];await saveWorkingGroup();renderWorkingGroup()}
+$('t4-fav-btn').onclick=async()=>{const sid=$('t4-sid').value.trim().toUpperCase(),brName=$('t4-br').value,sname=lastStockName[sid]||'';if(!watchlist.find(w=>w['股票代號']===sid&&w['追蹤分點']===brName)){watchlist.push({'股票代號':sid,'股票名稱':sname,'追蹤分點':brName,'筆記':''});await saveWatchlist();renderWatchlist();showStatus('t4-status','✅ 已存入最愛清單','success');setTimeout(()=>showStatus('t4-status',''),2000)}else{showStatus('t4-status','⚠️ 此組合已在最愛清單中','info');setTimeout(()=>showStatus('t4-status',''),2000)}}
 
 // ── VIP ──
-function initVipPanel(){
-  ['vip-days','vip-pct'].forEach(id=>{ const inp=$(id),val=$(id+'-val'); if(inp&&val) inp.oninput=()=>val.textContent=inp.value; });
-  $('vip-period').onchange=()=>{ vipScanData=[]; $('vip-caption').textContent=''; };
-  $('vip-apply-btn').onclick=()=>{
-    const btn=$('vip-apply-btn'); btn.disabled=true; btn.textContent='⏳ 篩選中...';
-    if(window.innerWidth>768){ $('vip-overlay').style.display='flex'; $('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>篩選中...</div>'; }
-    loadAndFilterVip().finally(()=>{ btn.disabled=false; btn.textContent='🔍 套用篩選'; });
-  };
-}
-async function loadAndFilterVip(){
-  const sheet=$('vip-period').value;
-  if(!vipScanData.length||vipScanData._sheet!==sheet){
-    $('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入掃描資料中...</div>';
-    try {
-      const raw=await apiFetch(`/api/vip/scan?sheet=${sheet}`);
-      const today=new Date(),todayMs=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());
-      raw.forEach(row=>{
-        let latestStr=null;
-        const lc=row['最新訊號日']; if(lc) latestStr=String(lc).replace(/\//g,'-').slice(0,10);
-        if(!latestStr){ const dates=(row['訊號摘要']||'').match(/\d{4}[\/\-]\d{2}[\/\-]\d{2}/g)||[]; dates.forEach(d=>{ const ds=d.replace(/\//g,'-'); if(!latestStr||ds>latestStr) latestStr=ds; }); }
-        row._latestDate=latestStr;
-        let score=0; score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;
-        const amt=parseFloat(row['金額(萬)']||0),vol=parseFloat(row['張數']||0),scale=(amt>0)?amt:(vol/10);
-        score+=Math.min(scale/500,1)*40;
-        if(latestStr){ const [y,mo,dd]=latestStr.split('-').map(Number); const daysAgo=Math.floor((todayMs-Date.UTC(y,mo-1,dd))/86400000); score+=Math.max(0,20-daysAgo*0.3); }
-        const s=row['訊號摘要']||'';
-        if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL'))) score+=10;
-        row._score=Math.round(score*10)/10;
-        const dir=row['方向']||'',hasW=s.includes('WS')||s.includes('WL'),hasM=s.includes('MS')||s.includes('ML'),isBuy=dir==='買進',isSell=dir==='賣出';
-        row._match=(hasW&&isBuy)||(hasM&&isSell)?'🟢最佳':hasM&&isBuy?'🟡參考':hasW&&isSell?'🔴注意':'⚪未知';
-      });
-      vipScanData=raw; vipScanData._sheet=sheet;
-    } catch(e){ $('vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`; return; }
-  }
-  applyVipFilter();
-}
-function applyVipFilter(){
-  const days=parseInt($('vip-days').value)||60,dir=$('vip-dir').value;
-  const minAmt=parseFloat($('vip-score').value)||0,minPct=parseInt($('vip-pct').value)||0,minVol=parseInt($('vip-vol').value)||0;
-  const cutoffDate=new Date(); cutoffDate.setDate(cutoffDate.getDate()-days); const cutoff=cutoffDate.toISOString().slice(0,10);
-  vipFiltered=vipScanData.filter(r=>{ if(r._latestDate&&r._latestDate<cutoff) return false; if(dir!=='全部'&&r['方向']!==dir) return false; if(parseFloat(r['金額(萬)']||0)<minAmt) return false; if(parseFloat(r['佔比%']||0)<minPct) return false; if(parseFloat(r['張數']||0)<minVol) return false; return true; })
-  .sort((a,b)=>{ const sortBy=$('vip-sort')?.value||'張數'; if(sortBy==='股票名稱') return String(a['股票名稱']||'').localeCompare(String(b['股票名稱']||'')); if(sortBy==='最新訊號日') return (b._latestDate||'')>(a._latestDate||'')?1:-1; if(sortBy==='_match') return String(a._match||'').localeCompare(String(b._match||'')); const va=parseFloat(a[sortBy]??0)||a._score||0,vb=parseFloat(b[sortBy]??0)||b._score||0; return vb-va; });
-  const brokerSel=$('vip-broker-sel'),curBr=brokerSel.value; brokerSel.innerHTML='<option>全部分點</option>';
-  const counts={}; vipFiltered.forEach(r=>{ const b=r['分點名稱']||''; if(b) counts[b]=(counts[b]||0)+1; });
-  Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([br,cnt])=>brokerSel.appendChild(el('option',{value:br,text:`${br}（${cnt}）`})));
-  if([...brokerSel.options].find(o=>o.value===curBr)) brokerSel.value=curBr;
-  brokerSel.onchange=renderVipTable;
-  $('vip-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${vipFiltered.length} 檔`;
-  if(window.innerWidth>768){ const ov=$('vip-overlay'); ov.classList.add('open'); ov.style.display='flex'; $('vip-overlay-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${vipFiltered.length} 檔`; }
-  renderVipTable();
-}
-function renderVipTable(){
-  const selBr=$('vip-broker-sel').value;
-  let rows=vipFiltered; if(selBr!=='全部分點') rows=rows.filter(r=>r['分點名稱']===selBr);
-  const wrap=$('vip-table-wrap');
-  if(!rows.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>'; return; }
-  const topBar=document.createElement('div'); topBar.className='vip-top-bar'; topBar.style.cssText='display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;flex-shrink:0';
-  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'}); addBtn.style.cssText='flex:1;padding:6px 8px;font-size:.78rem';
-  const selAllBtn=el('button',{class:'vip-add-btn',text:'☑ 全選'}); selAllBtn.style.cssText='padding:6px 10px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
-  topBar.appendChild(addBtn); topBar.appendChild(selAllBtn);
-  addBtn.onclick=async()=>{ if(!vipSelected.size){ alert('請先勾選 🗂️ 欄位'); return; } let added=0; vipSelected.forEach(key=>{ const [s,b]=key.split('||'); const dataRow=vipScanData.find(r=>String(r['股票代號']||'')==s&&String(r['分點名稱']||'')==b); const sname=dataRow?String(dataRow['股票名稱']||''):''; if(!workingGroup.find(w=>w['股票代號']===s&&w['追蹤分點']===b)){ workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b}); added++; } }); if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); vipAllSelected=false; renderVipTable(); alert(`✅ 已加入 ${added} 檔`); } else alert('全部已在工作組中'); };
-  selAllBtn.onclick=()=>{ vipAllSelected=!vipAllSelected; selAllBtn.textContent=vipAllSelected?'☒ 取消全選':'☑ 全選'; if(vipAllSelected) rows.forEach(r=>vipSelected.add(`${r['股票代號']}||${r['分點名稱']}`)); else vipSelected.clear(); renderVipTable(); };
-  const tbl=el('table',{class:'vip-table'}),thead=el('thead');
-  thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('方向'),th('符合'),th('張數'),th('金額'),th('佔比%'),th('日期'),th('訊號')));
-  tbl.appendChild(thead); const tbody=el('tbody');
-  rows.forEach(row=>{ const sid=String(row['股票代號']||'').trim(),br=String(row['分點名稱']||'').trim(),key=`${sid}||${br}`; const loadCb=el('input',{type:'checkbox',title:'載入K線'}); loadCb.onchange=()=>{ if(loadCb.checked){ const o=$('vip-overlay'); o.classList.remove('open'); o.style.display=''; switchToT4(sid,br); loadCb.checked=false; } }; const selCb=el('input',{type:'checkbox'}); if(vipSelected.has(key)) selCb.checked=true; selCb.onchange=()=>{ if(selCb.checked) vipSelected.add(key); else vipSelected.delete(key); }; tbody.appendChild(tr(td(loadCb),td(selCb),td({text:sid}),td({text:String(row['股票名稱']||'')}),td({text:br}),td({text:String(row['方向']||'')}),td({text:row._match||''}),td({text:String(row['張數']||'')}),td({text:String(row['金額(萬)']||'')}),td({text:String(row['佔比%']||'')}),td({text:String(row['最新訊號日']||'').slice(0,10)}),td({text:String(row['訊號摘要']||'')})));});
-  tbl.appendChild(tbody); wrap.innerHTML=''; wrap.appendChild(topBar);
-  const scrollWrap=document.createElement('div'); scrollWrap.className='vip-scroll-wrap'; if(window.innerWidth<=768) scrollWrap.style.cssText='max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px';
-  scrollWrap.appendChild(tbl); wrap.appendChild(scrollWrap); $('vip-sel-wrap').innerHTML='';
-}
-function initMobileVipPanel(){
-  ['m-vip-days','m-vip-pct'].forEach(id=>{ const inp=$(id),val=$(id+'-val'); if(inp&&val) inp.oninput=()=>val.textContent=inp.value; });
-  $('m-vip-period').onchange=()=>{ vipScanData=[]; $('m-vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem">週期已切換，請按「套用篩選」</div>'; };
-  $('m-vip-apply-btn').onclick=()=>mobileApplyVipFilter();
-  $('m-vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem;padding:6px 0">請設定篩選條件後按「🔍 套用篩選」</div>';
-}
-async function mobileApplyVipFilter(){
-  const sheet=$('m-vip-period').value;
-  if(!vipScanData.length||vipScanData._sheet!==sheet){
-    $('m-vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入中...</div>';
-    try {
-      const raw=await apiFetch(`/api/vip/scan?sheet=${sheet}`);
-      const today=new Date(),todayMs=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());
-      raw.forEach(row=>{ let latestStr=null; const lc=row['最新訊號日']; if(lc) latestStr=String(lc).replace(/\//g,'-').slice(0,10); if(!latestStr){ const dates=(row['訊號摘要']||'').match(/\d{4}[\/\-]\d{2}[\/\-]\d{2}/g)||[]; dates.forEach(d=>{ const ds=d.replace(/\//g,'-'); if(!latestStr||ds>latestStr) latestStr=ds; }); } row._latestDate=latestStr; let score=0; score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4; const amt=parseFloat(row['金額(萬)']||0),vol=parseFloat(row['張數']||0),scale=(amt>0)?amt:(vol/10); score+=Math.min(scale/500,1)*40; if(latestStr){ const [y,mo,dd]=latestStr.split('-').map(Number); const daysAgo=Math.floor((todayMs-Date.UTC(y,mo-1,dd))/86400000); score+=Math.max(0,20-daysAgo*0.3); } const s=row['訊號摘要']||''; if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL'))) score+=10; row._score=Math.round(score*10)/10; const dir=row['方向']||'',hasW=s.includes('WS')||s.includes('WL'),hasM=s.includes('MS')||s.includes('ML'),isBuy=dir==='買進',isSell=dir==='賣出'; row._match=(hasW&&isBuy)||(hasM&&isSell)?'🟢最佳':hasM&&isBuy?'🟡參考':hasW&&isSell?'🔴注意':'⚪未知'; });
-      vipScanData=raw; vipScanData._sheet=sheet;
-    } catch(e){ $('m-vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`; return; }
-  }
-  const days=parseInt($('m-vip-days').value)||60,dir=$('m-vip-dir').value,minAmt=parseFloat($('m-vip-score').value)||0,minPct=parseInt($('m-vip-pct').value)||0,minVol=parseInt($('m-vip-vol').value)||0;
-  const cutoffDate=new Date(); cutoffDate.setDate(cutoffDate.getDate()-days); const cutoff=cutoffDate.toISOString().slice(0,10),selBr=$('m-vip-broker-sel').value;
-  let filtered=vipScanData.filter(r=>{ if(r._latestDate&&r._latestDate<cutoff) return false; if(dir!=='全部'&&r['方向']!==dir) return false; if(parseFloat(r['金額(萬)']||0)<minAmt) return false; if(parseFloat(r['佔比%']||0)<minPct) return false; if(parseFloat(r['張數']||0)<minVol) return false; return true; })
-  .sort((a,b)=>{ const sortBy=$('m-vip-sort')?.value||'張數'; if(sortBy==='股票名稱') return String(a['股票名稱']||'').localeCompare(String(b['股票名稱']||'')); if(sortBy==='最新訊號日') return (b._latestDate||'')>(a._latestDate||'')?1:-1; if(sortBy==='_match') return String(a._match||'').localeCompare(String(b._match||'')); const va=parseFloat(a[sortBy]??0)||a._score||0,vb=parseFloat(b[sortBy]??0)||b._score||0; return vb-va; });
-  const brokerSel=$('m-vip-broker-sel'),curBr=brokerSel.value; brokerSel.innerHTML='<option>全部分點</option>';
-  const counts={}; filtered.forEach(r=>{ const b=r['分點名稱']||''; if(b) counts[b]=(counts[b]||0)+1; });
-  Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([br,cnt])=>brokerSel.appendChild(el('option',{value:br,text:`${br}（${cnt}）`})));
-  if([...brokerSel.options].find(o=>o.value===curBr)) brokerSel.value=curBr;
-  brokerSel.onchange=()=>mobileApplyVipFilter();
-  if(selBr!=='全部分點') filtered=filtered.filter(r=>r['分點名稱']===selBr);
-  $('m-vip-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${filtered.length} 檔`;
-  const wrap=$('m-vip-table-wrap');
-  if(!filtered.length){ wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>'; return; }
-  const topBar=document.createElement('div'); topBar.style.cssText='display:flex;gap:4px;margin-bottom:6px';
-  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'}); addBtn.style.cssText='flex:1;padding:5px 8px;font-size:.78rem';
-  const selAllBtn=el('button',{class:'vip-add-btn',text:vipAllSelected?'☒ 取消全選':'☑ 全選'}); selAllBtn.style.cssText='padding:5px 8px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
-  topBar.appendChild(addBtn); topBar.appendChild(selAllBtn);
-  addBtn.onclick=async()=>{ if(!vipSelected.size){ alert('請先勾選'); return; } let added=0; vipSelected.forEach(key=>{ const [s,b]=key.split('||'); const dataRow=vipScanData.find(r=>String(r['股票代號']||'')==s&&String(r['分點名稱']||'')==b); const sname=dataRow?String(dataRow['股票名稱']||''):''; if(!workingGroup.find(w=>w['股票代號']===s&&w['追蹤分點']===b)){ workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b}); added++; } }); if(added){ await saveWorkingGroup(); renderWorkingGroup(); vipSelected.clear(); vipAllSelected=false; mobileApplyVipFilter(); alert(`✅ 已加入 ${added} 檔`); } else alert('全部已在工作組中'); };
-  selAllBtn.onclick=()=>{ vipAllSelected=!vipAllSelected; selAllBtn.textContent=vipAllSelected?'☒ 取消全選':'☑ 全選'; if(vipAllSelected) filtered.forEach(r=>vipSelected.add(`${r['股票代號']}||${r['分點名稱']}`)); else vipSelected.clear(); mobileApplyVipFilter(); };
-  const tbl=el('table',{class:'vip-table'}),thead=el('thead');
-  thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('符合')));
-  tbl.appendChild(thead); const tbody=el('tbody');
-  filtered.forEach(row=>{ const sid=String(row['股票代號']||'').trim(),brr=String(row['分點名稱']||'').trim(),key=`${sid}||${brr}`; const loadCb=el('input',{type:'checkbox'}); loadCb.onchange=()=>{ if(loadCb.checked){ switchToT4(sid,brr); loadCb.checked=false; } }; const selCb=el('input',{type:'checkbox'}); if(vipSelected.has(key)) selCb.checked=true; selCb.onchange=()=>{ if(selCb.checked) vipSelected.add(key); else vipSelected.delete(key); }; tbody.appendChild(tr(td(loadCb),td(selCb),td({text:sid}),td({text:String(row['股票名稱']||'')}),td({text:brr}),td({text:row._match||''}))); });
-  tbl.appendChild(tbody);
-  const scrollWrap=document.createElement('div'); scrollWrap.style.cssText='max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:6px'; scrollWrap.appendChild(tbl);
-  wrap.innerHTML=''; wrap.appendChild(topBar); wrap.appendChild(scrollWrap); $('m-vip-sel-wrap').innerHTML='';
-}
+function initVipPanel(){['vip-days','vip-pct'].forEach(id=>{const inp=$(id),val=$(id+'-val');if(inp&&val)inp.oninput=()=>val.textContent=inp.value});$('vip-period').onchange=()=>{vipScanData=[];$('vip-caption').textContent=''};$('vip-apply-btn').onclick=()=>{const btn=$('vip-apply-btn');btn.disabled=true;btn.textContent='⏳ 篩選中...';if(window.innerWidth>768){$('vip-overlay').style.display='flex';$('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>篩選中...</div>'}loadAndFilterVip().finally(()=>{btn.disabled=false;btn.textContent='🔍 套用篩選'})}}
+async function loadAndFilterVip(){const sheet=$('vip-period').value;if(!vipScanData.length||vipScanData._sheet!==sheet){$('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入掃描資料中...</div>';try{const raw=await apiFetch(`/api/vip/scan?sheet=${sheet}`);const today=new Date(),todayMs=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());raw.forEach(row=>{let latestStr=null;const lc=row['最新訊號日'];if(lc)latestStr=String(lc).replace(/\//g,'-').slice(0,10);if(!latestStr){const dates=(row['訊號摘要']||'').match(/\d{4}[\/\-]\d{2}[\/\-]\d{2}/g)||[];dates.forEach(d=>{const ds=d.replace(/\//g,'-');if(!latestStr||ds>latestStr)latestStr=ds})}row._latestDate=latestStr;let score=0;score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;const amt=parseFloat(row['金額(萬)']||0),vol=parseFloat(row['張數']||0),scale=(amt>0)?amt:(vol/10);score+=Math.min(scale/500,1)*40;if(latestStr){const[y,mo,dd]=latestStr.split('-').map(Number);const daysAgo=Math.floor((todayMs-Date.UTC(y,mo-1,dd))/86400000);score+=Math.max(0,20-daysAgo*0.3)}const s=row['訊號摘要']||'';if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL')))score+=10;row._score=Math.round(score*10)/10;const dir=row['方向']||'',hasW=s.includes('WS')||s.includes('WL'),hasM=s.includes('MS')||s.includes('ML'),isBuy=dir==='買進',isSell=dir==='賣出';row._match=(hasW&&isBuy)||(hasM&&isSell)?'🟢最佳':hasM&&isBuy?'🟡參考':hasW&&isSell?'🔴注意':'⚪未知'});vipScanData=raw;vipScanData._sheet=sheet}catch(e){$('vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`;return}}applyVipFilter()}
+function applyVipFilter(){const days=parseInt($('vip-days').value)||60,dir=$('vip-dir').value,minAmt=parseFloat($('vip-score').value)||0,minPct=parseInt($('vip-pct').value)||0,minVol=parseInt($('vip-vol').value)||0;const cutoffDate=new Date();cutoffDate.setDate(cutoffDate.getDate()-days);const cutoff=cutoffDate.toISOString().slice(0,10);vipFiltered=vipScanData.filter(r=>{if(r._latestDate&&r._latestDate<cutoff)return false;if(dir!=='全部'&&r['方向']!==dir)return false;if(parseFloat(r['金額(萬)']||0)<minAmt)return false;if(parseFloat(r['佔比%']||0)<minPct)return false;if(parseFloat(r['張數']||0)<minVol)return false;return true}).sort((a,b)=>{const sortBy=$('vip-sort')?.value||'張數';if(sortBy==='股票名稱')return String(a['股票名稱']||'').localeCompare(String(b['股票名稱']||''));if(sortBy==='最新訊號日')return(b._latestDate||'')>(a._latestDate||'')?1:-1;if(sortBy==='_match')return String(a._match||'').localeCompare(String(b._match||''));const va=parseFloat(a[sortBy]??0)||a._score||0,vb=parseFloat(b[sortBy]??0)||b._score||0;return vb-va});const brokerSel=$('vip-broker-sel'),curBr=brokerSel.value;brokerSel.innerHTML='<option>全部分點</option>';const counts={};vipFiltered.forEach(r=>{const b=r['分點名稱']||'';if(b)counts[b]=(counts[b]||0)+1});Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([br,cnt])=>brokerSel.appendChild(el('option',{value:br,text:`${br}（${cnt}）`})));if([...brokerSel.options].find(o=>o.value===curBr))brokerSel.value=curBr;brokerSel.onchange=renderVipTable;$('vip-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${vipFiltered.length} 檔`;if(window.innerWidth>768){const ov=$('vip-overlay');ov.classList.add('open');ov.style.display='flex';$('vip-overlay-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${vipFiltered.length} 檔`}renderVipTable()}
+function renderVipTable(){const selBr=$('vip-broker-sel').value;let rows=vipFiltered;if(selBr!=='全部分點')rows=rows.filter(r=>r['分點名稱']===selBr);const wrap=$('vip-table-wrap');if(!rows.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>';return}const topBar=document.createElement('div');topBar.className='vip-top-bar';topBar.style.cssText='display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;flex-shrink:0';const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'});addBtn.style.cssText='flex:1;padding:6px 8px;font-size:.78rem';const selAllBtn=el('button',{class:'vip-add-btn',text:'☑ 全選'});selAllBtn.style.cssText='padding:6px 10px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);color:var(--text)';topBar.appendChild(addBtn);topBar.appendChild(selAllBtn);addBtn.onclick=async()=>{if(!vipSelected.size){alert('請先勾選 🗂️ 欄位');return}let added=0;vipSelected.forEach(key=>{const[s,b]=key.split('||');const dataRow=vipScanData.find(r=>String(r['股票代號']||'')==s&&String(r['分點名稱']||'')==b);const sname=dataRow?String(dataRow['股票名稱']||''):'';if(!workingGroup.find(w=>w['股票代號']===s&&w['追蹤分點']===b)){workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b});added++}});if(added){await saveWorkingGroup();renderWorkingGroup();vipSelected.clear();vipAllSelected=false;renderVipTable();alert(`✅ 已加入 ${added} 檔`)}else alert('全部已在工作組中')};selAllBtn.onclick=()=>{vipAllSelected=!vipAllSelected;selAllBtn.textContent=vipAllSelected?'☒ 取消全選':'☑ 全選';if(vipAllSelected)rows.forEach(r=>vipSelected.add(`${r['股票代號']}||${r['分點名稱']}`));else vipSelected.clear();renderVipTable()};const tbl=el('table',{class:'vip-table'}),thead=el('thead');thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('方向'),th('符合'),th('張數'),th('金額'),th('佔比%'),th('日期'),th('訊號')));tbl.appendChild(thead);const tbody=el('tbody');rows.forEach(row=>{const sid=String(row['股票代號']||'').trim(),br=String(row['分點名稱']||'').trim(),key=`${sid}||${br}`;const loadCb=el('input',{type:'checkbox',title:'載入K線'});loadCb.onchange=()=>{if(loadCb.checked){const o=$('vip-overlay');o.classList.remove('open');o.style.display='';switchToT4(sid,br);loadCb.checked=false}};const selCb=el('input',{type:'checkbox'});if(vipSelected.has(key))selCb.checked=true;selCb.onchange=()=>{if(selCb.checked)vipSelected.add(key);else vipSelected.delete(key)};tbody.appendChild(tr(td(loadCb),td(selCb),td({text:sid}),td({text:String(row['股票名稱']||'')}),td({text:br}),td({text:String(row['方向']||'')}),td({text:row._match||''}),td({text:String(row['張數']||'')}),td({text:String(row['金額(萬)']||'')}),td({text:String(row['佔比%']||'')}),td({text:String(row['最新訊號日']||'').slice(0,10)}),td({text:String(row['訊號摘要']||'')})))});tbl.appendChild(tbody);wrap.innerHTML='';wrap.appendChild(topBar);const scrollWrap=document.createElement('div');scrollWrap.className='vip-scroll-wrap';if(window.innerWidth<=768)scrollWrap.style.cssText='max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px';scrollWrap.appendChild(tbl);wrap.appendChild(scrollWrap);$('vip-sel-wrap').innerHTML=''}
+function initMobileVipPanel(){['m-vip-days','m-vip-pct'].forEach(id=>{const inp=$(id),val=$(id+'-val');if(inp&&val)inp.oninput=()=>val.textContent=inp.value});$('m-vip-period').onchange=()=>{vipScanData=[];$('m-vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem">週期已切換，請按「套用篩選」</div>'};$('m-vip-apply-btn').onclick=()=>mobileApplyVipFilter();$('m-vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem;padding:6px 0">請設定篩選條件後按「🔍 套用篩選」</div>'}
+async function mobileApplyVipFilter(){const sheet=$('m-vip-period').value;if(!vipScanData.length||vipScanData._sheet!==sheet){$('m-vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入中...</div>';try{const raw=await apiFetch(`/api/vip/scan?sheet=${sheet}`);const today=new Date(),todayMs=Date.UTC(today.getFullYear(),today.getMonth(),today.getDate());raw.forEach(row=>{let latestStr=null;const lc=row['最新訊號日'];if(lc)latestStr=String(lc).replace(/\//g,'-').slice(0,10);if(!latestStr){const dates=(row['訊號摘要']||'').match(/\d{4}[\/\-]\d{2}[\/\-]\d{2}/g)||[];dates.forEach(d=>{const ds=d.replace(/\//g,'-');if(!latestStr||ds>latestStr)latestStr=ds})}row._latestDate=latestStr;let score=0;score+=Math.min(parseFloat(row['佔比%']||0),100)*0.4;const amt=parseFloat(row['金額(萬)']||0),vol=parseFloat(row['張數']||0),scale=(amt>0)?amt:(vol/10);score+=Math.min(scale/500,1)*40;if(latestStr){const[y,mo,dd]=latestStr.split('-').map(Number);const daysAgo=Math.floor((todayMs-Date.UTC(y,mo-1,dd))/86400000);score+=Math.max(0,20-daysAgo*0.3)}const s=row['訊號摘要']||'';if((s.includes('MS')||s.includes('WS'))&&(s.includes('ML')||s.includes('WL')))score+=10;row._score=Math.round(score*10)/10;const dir=row['方向']||'',hasW=s.includes('WS')||s.includes('WL'),hasM=s.includes('MS')||s.includes('ML'),isBuy=dir==='買進',isSell=dir==='賣出';row._match=(hasW&&isBuy)||(hasM&&isSell)?'🟢最佳':hasM&&isBuy?'🟡參考':hasW&&isSell?'🔴注意':'⚪未知'});vipScanData=raw;vipScanData._sheet=sheet}catch(e){$('m-vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`;return}}const days=parseInt($('m-vip-days').value)||60,dir=$('m-vip-dir').value,minAmt=parseFloat($('m-vip-score').value)||0,minPct=parseInt($('m-vip-pct').value)||0,minVol=parseInt($('m-vip-vol').value)||0;const cutoffDate=new Date();cutoffDate.setDate(cutoffDate.getDate()-days);const cutoff=cutoffDate.toISOString().slice(0,10),selBr=$('m-vip-broker-sel').value;let filtered=vipScanData.filter(r=>{if(r._latestDate&&r._latestDate<cutoff)return false;if(dir!=='全部'&&r['方向']!==dir)return false;if(parseFloat(r['金額(萬)']||0)<minAmt)return false;if(parseFloat(r['佔比%']||0)<minPct)return false;if(parseFloat(r['張數']||0)<minVol)return false;return true}).sort((a,b)=>{const sortBy=$('m-vip-sort')?.value||'張數';if(sortBy==='股票名稱')return String(a['股票名稱']||'').localeCompare(String(b['股票名稱']||''));if(sortBy==='最新訊號日')return(b._latestDate||'')>(a._latestDate||'')?1:-1;if(sortBy==='_match')return String(a._match||'').localeCompare(String(b._match||''));const va=parseFloat(a[sortBy]??0)||a._score||0,vb=parseFloat(b[sortBy]??0)||b._score||0;return vb-va});const brokerSel=$('m-vip-broker-sel'),curBr=brokerSel.value;brokerSel.innerHTML='<option>全部分點</option>';const counts={};filtered.forEach(r=>{const b=r['分點名稱']||'';if(b)counts[b]=(counts[b]||0)+1});Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([br,cnt])=>brokerSel.appendChild(el('option',{value:br,text:`${br}（${cnt}）`})));if([...brokerSel.options].find(o=>o.value===curBr))brokerSel.value=curBr;brokerSel.onchange=()=>mobileApplyVipFilter();if(selBr!=='全部分點')filtered=filtered.filter(r=>r['分點名稱']===selBr);$('m-vip-caption').textContent=`近${days}天 金額≥${minAmt}萬 共 ${filtered.length} 檔`;const wrap=$('m-vip-table-wrap');if(!filtered.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>';return}const topBar=document.createElement('div');topBar.style.cssText='display:flex;gap:4px;margin-bottom:6px';const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'});addBtn.style.cssText='flex:1;padding:5px 8px;font-size:.78rem';const selAllBtn=el('button',{class:'vip-add-btn',text:vipAllSelected?'☒ 取消全選':'☑ 全選'});selAllBtn.style.cssText='padding:5px 8px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);color:var(--text)';topBar.appendChild(addBtn);topBar.appendChild(selAllBtn);addBtn.onclick=async()=>{if(!vipSelected.size){alert('請先勾選');return}let added=0;vipSelected.forEach(key=>{const[s,b]=key.split('||');const dataRow=vipScanData.find(r=>String(r['股票代號']||'')==s&&String(r['分點名稱']||'')==b);const sname=dataRow?String(dataRow['股票名稱']||''):'';if(!workingGroup.find(w=>w['股票代號']===s&&w['追蹤分點']===b)){workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b});added++}});if(added){await saveWorkingGroup();renderWorkingGroup();vipSelected.clear();vipAllSelected=false;mobileApplyVipFilter();alert(`✅ 已加入 ${added} 檔`)}else alert('全部已在工作組中')};selAllBtn.onclick=()=>{vipAllSelected=!vipAllSelected;selAllBtn.textContent=vipAllSelected?'☒ 取消全選':'☑ 全選';if(vipAllSelected)filtered.forEach(r=>vipSelected.add(`${r['股票代號']}||${r['分點名稱']}`));else vipSelected.clear();mobileApplyVipFilter()};const tbl=el('table',{class:'vip-table'}),thead=el('thead');thead.appendChild(tr(th('📊'),th('🗂️'),th('代號'),th('名稱'),th('分點'),th('符合')));tbl.appendChild(thead);const tbody=el('tbody');filtered.forEach(row=>{const sid=String(row['股票代號']||'').trim(),brr=String(row['分點名稱']||'').trim(),key=`${sid}||${brr}`;const loadCb=el('input',{type:'checkbox'});loadCb.onchange=()=>{if(loadCb.checked){switchToT4(sid,brr);loadCb.checked=false}};const selCb=el('input',{type:'checkbox'});if(vipSelected.has(key))selCb.checked=true;selCb.onchange=()=>{if(selCb.checked)vipSelected.add(key);else vipSelected.delete(key)};tbody.appendChild(tr(td(loadCb),td(selCb),td({text:sid}),td({text:String(row['股票名稱']||'')}),td({text:brr}),td({text:row._match||''})))});tbl.appendChild(tbody);const scrollWrap=document.createElement('div');scrollWrap.style.cssText='max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:6px';scrollWrap.appendChild(tbl);wrap.innerHTML='';wrap.appendChild(topBar);wrap.appendChild(scrollWrap);$('m-vip-sel-wrap').innerHTML=''}
 
 // ══════════════════════════════════════
 // TAB5 年率監控
 // ══════════════════════════════════════
-function t5F(n,d=2){ if(n==null) return '—'; return n.toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d}); }
-function t5FY(n){ if(n==null) return '—'; return (n>=0?'+':'')+n.toFixed(2)+'%'; }
-function t5YC(n){ if(n==null) return 'var(--text)'; return n>1?'var(--green)':n<-1?'var(--red)':'var(--yellow)'; }
-function t5BC(n){ if(n==null) return 'var(--border)'; return n>1?'var(--green)':n<-1?'var(--red)':'var(--yellow)'; }
+const T5_SERIES=[
+  {id:'yearly',  label:'年線 YoY', color:'#ef5350'},  // 紅
+  {id:'monthly', label:'月線 YoY', color:'#FFD600'},  // 黃
+  {id:'weekly',  label:'週線 YoY', color:'#26a69a'},  // 綠
+  {id:'daily',   label:'日線 YoY', color:'#90b0ff'},  // 藍
+];
+
+function t5F(n,d=2){if(n==null)return '—';return n.toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d})}
+function t5FY(n){if(n==null)return '—';return (n>=0?'+':'')+n.toFixed(2)+'%'}
+function t5YC(n){if(n==null)return 'var(--text)';return n>1?'var(--green)':n<-1?'var(--red)':'var(--yellow)'}
+function t5BC(n){if(n==null)return 'var(--border)';return n>1?'var(--green)':n<-1?'var(--red)':'var(--yellow)'}
 
 async function loadYoy(){
   const btn=$('t5-refresh-btn');
-  btn.disabled=true; btn.textContent='⏳ 載入中...';
-  showStatus('t5-status','<div class="loading"><div class="spinner"></div>向後端請求年率資料（首次約30秒）...</div>');
-  $('t5-cards').innerHTML='';
-  $('t5-hero').style.display='none';
-  $('t5-chart-box').style.display='none';
+  btn.disabled=true;btn.textContent='⏳ 載入中...';
+  showStatus('t5-status','<div class="loading"><div class="spinner"></div>向後端請求年率資料（首次約30~60秒）...</div>');
+  $('t5-cards').innerHTML='';$('t5-hero').style.display='none';$('t5-chart-wrap').style.display='none';
+  try{
+    const data=await apiFetch('/api/yoy/twii');
+    t5Data=data;
 
-  try {
-    const data = await apiFetch('/api/yoy/twii');
-    t5Data = data;
+    // 初始化所有 series 為可見
+    T5_SERIES.forEach(s=>{ if(t5SeriesVisible[s.id]===undefined) t5SeriesVisible[s.id]=true; });
 
     // Hero
-    const gc = v=>(v??0)>=0?'var(--red)':'var(--green)'; // 台股漲紅跌綠
+    const gc=v=>(v??0)>=0?'var(--red)':'var(--green)';
     const pEl=$('t5-price'),cEl=$('t5-change');
-    pEl.textContent=t5F(data.latest_price); pEl.style.color=gc(data.latest_pct);
+    pEl.textContent=t5F(data.latest_price);pEl.style.color=gc(data.latest_pct);
     cEl.innerHTML=`<span style="color:${gc(data.latest_pct)}">${(data.latest_pct??0)>=0?'+':''}${t5F(data.latest_pct)}%　${(data.latest_change??0)>=0?'+':''}${t5F(data.latest_change)}</span>`;
 
     const monthly=data.periods.find(p=>p.id==='monthly');
     $('t5-ma').textContent=t5F(monthly?.data?.cur,0);
     $('t5-pa').textContent=t5F(monthly?.data?.prev,0);
-    const myEl=$('t5-my'); myEl.textContent=t5FY(monthly?.data?.yoy); myEl.style.color=t5YC(monthly?.data?.yoy);
+    const myEl=$('t5-my');myEl.textContent=t5FY(monthly?.data?.yoy);myEl.style.color=t5YC(monthly?.data?.yoy);
 
     const conEl=$('t5-con');
     const cc=data.consensus==='多頭'?'var(--red)':data.consensus==='空頭'?'var(--green)':'var(--yellow)';
@@ -1015,7 +656,7 @@ async function loadYoy(){
         <div style="font-size:.78rem;color:var(--text2);margin-bottom:8px">去年同期　<span style="font-family:monospace;color:var(--text2)">${t5F(d?.prev,0)}</span></div>
         <div style="font-family:monospace;font-size:26px;font-weight:700;color:${yc};line-height:1;margin-bottom:6px">${t5FY(yoy)}</div>
         <div style="font-size:.75rem;padding:2px 7px;border-radius:3px;display:inline-block;background:${sbg};color:${yc}">${d?.signal??'—'}</div>
-        <div style="font-size:.7rem;color:var(--text2);margin-top:6px">${(d?.key??'')}</div>
+        <div style="font-size:.7rem;color:var(--text2);margin-top:6px">${d?.key??''}</div>
       </div>`;
     }).join('');
 
@@ -1023,139 +664,159 @@ async function loadYoy(){
     $('t5-updated').textContent='更新：'+new Date(data.updated_at).toLocaleString('zh-TW');
 
     // 圖表
-    $('t5-chart-box').style.display='block';
-    renderYoyChart('monthly');
+    $('t5-chart-wrap').style.display='block';
+    buildLegend();
+    drawMultiChart();
 
-  } catch(e){
-    showStatus('t5-status',e.message,'error');
-  } finally {
-    btn.disabled=false; btn.textContent='↻ 更新資料';
-  }
+  }catch(e){showStatus('t5-status',e.message,'error')}
+  finally{btn.disabled=false;btn.textContent='↻ 更新資料'}
 }
 
 $('t5-refresh-btn').onclick=loadYoy;
 
-// YoY 折線圖（用 Canvas 自繪，不依賴 LightweightCharts 避免衝突）
-function renderYoyChart(periodId){
-  if(!t5Data) return;
-  const period=t5Data.periods.find(p=>p.id===periodId);
-  if(!period||!period.history||!period.history.length) return;
+// 年份範圍按鈕
+document.querySelectorAll('.t5-range-btn').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.t5-range-btn').forEach(b=>{b.style.background='var(--bg3)';b.style.border='1px solid var(--border)';b.style.color='var(--text2)'});
+    btn.style.background='var(--accent)';btn.style.border='1px solid var(--accent)';btn.style.color='#fff';
+    t5YearsRange=parseInt(btn.dataset.range);
+    drawMultiChart();
+  }
+});
 
-  // 更新 tab 樣式
-  document.querySelectorAll('.t5-chart-tab').forEach(t=>{
-    t.classList.toggle('active', t.dataset.pid===periodId);
+function buildLegend(){
+  const row=$('t5-legend-row');row.innerHTML='';
+  T5_SERIES.forEach(s=>{
+    const item=document.createElement('div');item.className='t5-legend-item';if(!t5SeriesVisible[s.id])item.classList.add('hidden');
+    item.innerHTML=`<div class="t5-legend-dot" style="background:${s.color}"></div><span style="color:${s.color}">${s.label}</span>`;
+    item.onclick=()=>{t5SeriesVisible[s.id]=!t5SeriesVisible[s.id];item.classList.toggle('hidden');drawMultiChart()};
+    row.appendChild(item);
   });
+}
 
-  const history=period.history;
-  const container=$('t5-yoy-chart');
-  container.innerHTML='';
+function filterByYears(history,years){
+  if(years>=999||!history.length)return history;
+  const cutStr=new Date(Date.now()-years*365.25*86400000).toISOString().slice(0,10);
+  return history.filter(d=>d.key>=cutStr);
+}
 
-  const W=container.clientWidth||600, H=280;
+function drawMultiChart(){
+  if(!t5Data)return;
+  const container=$('t5-multi-chart');container.innerHTML='';
+  const W=container.clientWidth||700,H=320;
   const canvas=document.createElement('canvas');
-  canvas.width=W*window.devicePixelRatio; canvas.height=H*window.devicePixelRatio;
-  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  canvas.width=W*window.devicePixelRatio;canvas.height=H*window.devicePixelRatio;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
   container.appendChild(canvas);
+  const ctx=canvas.getContext('2d');ctx.scale(window.devicePixelRatio,window.devicePixelRatio);
+  const PAD={top:16,right:12,bottom:28,left:52};
+  const W2=W-PAD.left-PAD.right,H2=H-PAD.top-PAD.bottom;
 
-  const ctx=canvas.getContext('2d');
-  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  // 收集所有可見 series 的資料
+  const visibleSeries=T5_SERIES.filter(s=>t5SeriesVisible[s.id]).map(s=>{
+    const period=t5Data.periods.find(p=>p.id===s.id);
+    const history=filterByYears(period?.history||[],t5YearsRange);
+    return{...s,history};
+  }).filter(s=>s.history.length>0);
 
-  const PAD={top:20,right:10,bottom:30,left:48};
-  const W2=W-PAD.left-PAD.right, H2=H-PAD.top-PAD.bottom;
+  if(!visibleSeries.length){
+    ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='14px monospace';ctx.textAlign='center';
+    ctx.fillText('無資料',W/2,H/2);return;
+  }
 
-  const vals=history.map(d=>d.yoy);
-  const minV=Math.min(...vals,-5), maxV=Math.max(...vals,5);
+  // 全域 min/max
+  let minV=0,maxV=0;
+  visibleSeries.forEach(s=>s.history.forEach(d=>{minV=Math.min(minV,d.yoy);maxV=Math.max(maxV,d.yoy)}));
+  minV=Math.floor(minV/5)*5-5;maxV=Math.ceil(maxV/5)*5+5;
   const range=maxV-minV||1;
 
-  function xPos(i){ return PAD.left + (i/(history.length-1||1))*W2; }
-  function yPos(v){ return PAD.top + (1-(v-minV)/range)*H2; }
+  // 全域時間軸（取所有可見 series 的時間聯集，月線最長，用月線為基準）
+  const refSeries=visibleSeries.find(s=>s.id==='monthly')||visibleSeries.find(s=>s.id==='weekly')||visibleSeries[0];
+  const timeKeys=refSeries.history.map(d=>d.key);
+  const tMin=timeKeys[0],tMax=timeKeys[timeKeys.length-1];
+
+  function xFromKey(k){
+    // 按字串比例插值
+    if(tMin===tMax)return PAD.left+W2/2;
+    const r=(k>tMax?1:k<tMin?0:(k.localeCompare(tMin))/(tMax.localeCompare(tMin)));
+    return PAD.left+r*W2;
+  }
+  function yFromYoy(v){return PAD.top+(1-(v-minV)/range)*H2}
 
   // 背景
-  ctx.fillStyle='#1a1d27';
-  ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#1a1d27';ctx.fillRect(0,0,W,H);
 
-  // 零線
-  const y0=yPos(0);
-  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-  ctx.beginPath(); ctx.moveTo(PAD.left,y0); ctx.lineTo(W-PAD.right,y0); ctx.stroke();
-  ctx.setLineDash([]);
-
-  // +20% / -20% 警戒線
-  [20,-20,10,-10].forEach(lv=>{
-    if(lv>minV&&lv<maxV){
-      const yy=yPos(lv);
-      ctx.strokeStyle=lv>0?'rgba(239,83,80,0.2)':'rgba(38,166,154,0.2)'; ctx.lineWidth=1; ctx.setLineDash([2,4]);
-      ctx.beginPath(); ctx.moveTo(PAD.left,yy); ctx.lineTo(W-PAD.right,yy); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font=`10px monospace`; ctx.textAlign='left';
-      ctx.fillText((lv>0?'+':'')+lv+'%', PAD.left+2, yy-3);
-    }
+  // 警戒線 & Y 格線
+  const yTicks=[-20,-10,0,10,20,30,40,50,60,70,80].filter(v=>v>=minV&&v<=maxV);
+  yTicks.forEach(v=>{
+    const yy=yFromYoy(v);
+    ctx.strokeStyle=v===0?'rgba(255,255,255,0.25)':'rgba(255,255,255,0.06)';
+    ctx.lineWidth=v===0?1.5:1;ctx.setLineDash(v===0?[]:([4,4]));
+    ctx.beginPath();ctx.moveTo(PAD.left,yy);ctx.lineTo(W-PAD.right,yy);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=v===0?'rgba(255,255,255,0.6)':'rgba(255,255,255,0.3)';
+    ctx.font='10px monospace';ctx.textAlign='right';
+    ctx.fillText((v>=0?'+':'')+v+'%',PAD.left-4,yy+4);
   });
 
-  // Y 軸標籤
-  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='10px monospace'; ctx.textAlign='right';
-  const yTicks=5;
-  for(let i=0;i<=yTicks;i++){
-    const v=minV+(range/yTicks)*i;
-    const yy=yPos(v);
-    ctx.fillText((v>=0?'+':'')+v.toFixed(0)+'%', PAD.left-4, yy+4);
-    ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(PAD.left,yy); ctx.lineTo(W-PAD.right,yy); ctx.stroke();
+  // X 軸標籤（每年一個）
+  ctx.fillStyle='rgba(255,255,255,0.35)';ctx.font='10px monospace';ctx.textAlign='center';
+  const startYear=parseInt(tMin.slice(0,4)),endYear=parseInt(tMax.slice(0,4));
+  for(let yr=startYear;yr<=endYear;yr++){
+    const k=`${yr}-01`;const x=xFromKey(k);
+    if(x>=PAD.left&&x<=W-PAD.right){
+      ctx.fillText(String(yr),x,H-6);
+      ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x,PAD.top);ctx.lineTo(x,H-PAD.bottom);ctx.stroke();
+    }
   }
 
-  // X 軸標籤
-  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='10px monospace'; ctx.textAlign='center';
-  const xStep=Math.max(1,Math.floor(history.length/8));
-  for(let i=0;i<history.length;i+=xStep){
-    const x=xPos(i);
-    ctx.fillText(history[i].key.slice(0,7), x, H-6);
-  }
-
-  // 填色區域（正負分色）
-  // 正值區（綠）
-  ctx.beginPath(); ctx.moveTo(xPos(0), yPos(Math.max(vals[0],0)));
-  for(let i=0;i<history.length;i++) ctx.lineTo(xPos(i), yPos(Math.max(vals[i],0)));
-  ctx.lineTo(xPos(history.length-1),y0); ctx.lineTo(PAD.left,y0); ctx.closePath();
-  ctx.fillStyle='rgba(38,166,154,0.18)'; ctx.fill();
-
-  // 負值區（紅）
-  ctx.beginPath(); ctx.moveTo(xPos(0), yPos(Math.min(vals[0],0)));
-  for(let i=0;i<history.length;i++) ctx.lineTo(xPos(i), yPos(Math.min(vals[i],0)));
-  ctx.lineTo(xPos(history.length-1),y0); ctx.lineTo(PAD.left,y0); ctx.closePath();
-  ctx.fillStyle='rgba(239,83,80,0.18)'; ctx.fill();
-
-  // 主折線
-  ctx.beginPath(); ctx.moveTo(xPos(0),yPos(vals[0]));
-  for(let i=1;i<history.length;i++) ctx.lineTo(xPos(i),yPos(vals[i]));
-  ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=1.5; ctx.stroke();
-
-  // 最後一點標記
-  const lastI=history.length-1, lastV=vals[lastI], lx=xPos(lastI), ly=yPos(lastV);
-  ctx.beginPath(); ctx.arc(lx,ly,4,0,Math.PI*2);
-  ctx.fillStyle=lastV>=0?'#26a69a':'#ef5350'; ctx.fill();
-  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
+  // 畫各條線
+  visibleSeries.forEach(s=>{
+    if(!s.history.length)return;
+    ctx.beginPath();
+    s.history.forEach((d,i)=>{
+      const x=xFromKey(d.key),y=yFromYoy(d.yoy);
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle=s.color;ctx.lineWidth=1.5;ctx.globalAlpha=0.85;ctx.stroke();ctx.globalAlpha=1;
+    // 最後一點圓點
+    const last=s.history[s.history.length-1];
+    const lx=xFromKey(last.key),ly=yFromYoy(last.yoy);
+    ctx.beginPath();ctx.arc(lx,ly,3.5,0,Math.PI*2);
+    ctx.fillStyle=s.color;ctx.fill();
+  });
 
   // hover tooltip
-  const legendEl=$('t5-chart-legend');
+  const tooltip=$('t5-tooltip');
   canvas.onmousemove=e=>{
     const rect=canvas.getBoundingClientRect();
     const mx=e.clientX-rect.left;
-    const idx=Math.max(0,Math.min(history.length-1,Math.round((mx-PAD.left)/W2*(history.length-1))));
-    const d=history[idx];
-    legendEl.textContent=`${d.key}　當期: ${t5F(d.cur,0)}　去年: ${t5F(d.prev,0)}　YoY: ${t5FY(d.yoy)}`;
-    legendEl.style.color=d.yoy>=0?'var(--green)':'var(--red)';
+    // 找最近時間點（月線）
+    const refH=refSeries.history;
+    if(!refH.length)return;
+    let bestI=0,bestDist=1e9;
+    refH.forEach((d,i)=>{const x=xFromKey(d.key);const dist=Math.abs(x-mx);if(dist<bestDist){bestDist=dist;bestI=i}});
+    const refKey=refH[bestI].key;
+    // 顯示 tooltip
+    let html=`<div style="color:var(--text2);margin-bottom:4px">${refKey}</div>`;
+    visibleSeries.forEach(s=>{
+      // 找最近的同時間點
+      let best=null,bestD=999;
+      s.history.forEach(d=>{const diff=Math.abs(d.key.localeCompare(refKey));if(diff<bestD){bestD=diff;best=d}});
+      if(best){html+=`<div><span style="color:${s.color}">${s.label}</span>: <b style="color:${best.yoy>=0?'#ef5350':'#26a69a'}">${t5FY(best.yoy)}</b></div>`}
+    });
+    tooltip.innerHTML=html;tooltip.style.display='block';
   };
-  canvas.onmouseleave=()=>{ legendEl.textContent=''; };
+  canvas.onmouseleave=()=>{tooltip.style.display='none'};
+
+  // resize
+  const ro=new ResizeObserver(()=>{if($('tab-t5').style.display!=='none')drawMultiChart()});
+  ro.observe(container);
 }
 
-// 切換週期 tabs
-document.querySelectorAll('.t5-chart-tab').forEach(tab=>{
-  tab.onclick=()=>renderYoyChart(tab.dataset.pid);
-});
-
 // ── AUTO INIT ──
-(async()=>{
-  if(token&&username){ try{ await initApp(); }catch(e){ doLogout(); } }
-})();
+(async()=>{ if(token&&username){try{await initApp()}catch(e){doLogout()}} })();
 </script>
 
 <div id="vip-overlay">
