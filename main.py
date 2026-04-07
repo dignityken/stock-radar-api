@@ -636,6 +636,127 @@ import math as _math
 _yoy_cache: dict = {}
 _YOY_CACHE_TTL = 3600  # 1小時
 
+def _extract_close(df) -> Optional[pd.Series]:
+    """
+    從 yfinance 回傳的 DataFrame 取出 Close Series。
+    處理三種常見格式：
+      1. 單一 ticker → columns = ['Close', 'Open', ...]
+      2. 多 ticker / MultiIndex → columns = [('Close', '^TWII'), ...]
+      3. 全部失敗 → 回傳 None
+    """
+    if df is None or df.empty:
+        return None
+    try:
+        cols = df.columns
+        # MultiIndex
+        if hasattr(cols, 'levels'):
+            # 取第一層叫 'Close' 的
+            close_cols = [(l0, l1) for l0, l1 in cols if str(l0).strip().lower() == 'close']
+            if close_cols:
+                s = df[close_cols[0]]
+                if isinstance(s, pd.DataFrame):
+                    s = s.iloc[:, 0]
+                return s.dropna()
+            # fallback：取第一欄
+            return df.iloc[:, 0].dropna()
+        # 一般 columns
+        for name in ['Close', 'close', 'Adj Close']:
+            if name in cols:
+                s = df[name]
+                if isinstance(s, pd.DataFrame):
+                    s = s.iloc[:, 0]
+                return s.dropna()
+        # 實在找不到就取第一欄
+        return df.iloc[:, 0].dropna()
+    except Exception:
+        return None
+
+
+def _safe_float(v) -> Optional[float]:
+    try:
+        f = float(v)
+        return None if (_math.isnan(f) or _math.isinf(f)) else f
+    except Exception:
+        return None
+
+
+def _build_yoy_series(close_series: pd.Series, resample_freq: str, unit: str) -> list:
+    """
+    core 計算邏輯：
+      1. resample 成指定週期均值
+      2. 每個時間點找「約一年前」的均值
+      3. 計算 YoY = (cur/prev - 1) * 100
+      4. 回傳 [{ts, key, cur, prev, yoy}]（ts = unix ms，前端 x 軸）
+    """
+    if close_series is None or close_series.empty:
+        return []
+    try:
+        rs = close_series.resample(resample_freq).mean().dropna()
+    except Exception:
+        return []
+
+    rows = []
+    for ts_idx, val in rs.items():
+        v = _safe_float(val)
+        if v is not None:
+            rows.append((ts_idx.to_pydatetime(), v))
+
+    if not rows:
+        return []
+
+    # 建 dict 加速查找
+    dt_map = {r[0]: r[1] for r in rows}
+
+    ONE_YEAR = datetime.timedelta(days=365)
+    result = []
+    for dt, cur in rows:
+        target = dt - ONE_YEAR
+        # 在 dt_map 裡找距離 target 最近且 ≤45天的點
+        best_prev = None
+        best_diff = datetime.timedelta(days=46)
+        for cdt, cval in dt_map.items():
+            diff = abs(cdt - target)
+            if diff < best_diff:
+                best_diff = diff
+                best_prev = cval
+
+        if best_prev is None:
+            continue
+
+        yoy = round((cur / best_prev - 1) * 100, 2)
+        ts_ms = int(dt.timestamp() * 1000)
+
+        if unit == 'year':
+            key = str(dt.year)
+        elif unit == 'month':
+            key = dt.strftime("%Y-%m")
+        elif unit == 'week':
+            key = dt.strftime("%Y-W%W")
+        else:
+            key = dt.strftime("%Y-%m-%d")
+
+        result.append({
+            "ts":   ts_ms,
+            "key":  key,
+            "cur":  round(cur, 2),
+            "prev": round(best_prev, 2),
+            "yoy":  yoy,
+        })
+
+    return result
+
+
+def _signal(yoy) -> str:
+    if yoy is None: return "—"
+    if yoy > 20:  return "過熱謹慎"
+    if yoy > 10:  return "動能強"
+    if yoy > 2:   return "偏多"
+    if yoy > -2:  return "中性"
+    if yoy > -10: return "偏空"
+    if yoy > -20: return "動能弱"
+    return "極度超賣"
+
+
 @app.get("/api/yoy/twii")
 def get_yoy_twii():
     now_ts = datetime.datetime.now().timestamp()
@@ -643,155 +764,57 @@ def get_yoy_twii():
     if cached and (now_ts - cached["ts"]) < _YOY_CACHE_TTL:
         return cached["data"]
 
-    def safe_f(v):
+    # ── 下載資料 ──────────────────────────────────────────
+    # 月線：period="max" 最穩，拿全部歷史
+    # 如果失敗，改用 start="2000-01-01" 備援
+    def dl(period=None, start=None, interval="1d"):
+        kwargs = dict(progress=False, auto_adjust=True, interval=interval)
+        if period:
+            kwargs["period"] = period
+        if start:
+            kwargs["start"] = start
         try:
-            f = float(v)
-            return None if (_math.isnan(f) or _math.isinf(f)) else f
-        except Exception:
-            return None
-
-    def get_close(df):
-        if df is None or df.empty:
-            return None
-        try:
-            c = df["Close"] if "Close" in df.columns else df.iloc[:, 0]
-            if isinstance(c, pd.DataFrame):
-                c = c.iloc[:, 0]
-            return c.dropna()
-        except Exception:
-            return None
-
-    def download_safe(symbol, **kwargs):
-        """下載資料，失敗回傳空 DataFrame"""
-        try:
-            df = yf.download(symbol, progress=False, auto_adjust=True, **kwargs)
-            return df
+            return yf.download("^TWII", **kwargs)
         except Exception:
             return pd.DataFrame()
 
-    # ── 下載資料 ──────────────────────────────────────────
-    # 月線：用 period="max" 最穩定；interval 指定 1mo
-    mo = download_safe("^TWII", period="max",  interval="1mo")
-    wk = download_safe("^TWII", period="3y",   interval="1wk")
-    dy = download_safe("^TWII", period="3y",   interval="1d")
+    # 月線（年/月週期的基礎）
+    mo_df = dl(period="max", interval="1mo")
+    if mo_df.empty:
+        mo_df = dl(start="2000-01-01", interval="1mo")
 
-    mo_cl = get_close(mo)
-    wk_cl = get_close(wk)
-    dy_cl = get_close(dy)
+    # 週線
+    wk_df = dl(period="5y", interval="1wk")
+    if wk_df.empty:
+        wk_df = dl(start="2020-01-01", interval="1wk")
 
-    def signal_of(yoy):
-        if yoy is None: return "—"
-        if yoy > 20:  return "過熱謹慎"
-        if yoy > 10:  return "動能強"
-        if yoy > 2:   return "偏多"
-        if yoy > -2:  return "中性"
-        if yoy > -10: return "偏空"
-        if yoy > -20: return "動能弱"
-        return "極度超賣"
+    # 日線
+    dy_df = dl(period="3y", interval="1d")
+    if dy_df.empty:
+        dy_df = dl(start="2022-01-01", interval="1d")
 
-    def build_series(series_raw, unit):
-        """
-        從 pandas Series（index=DatetimeIndex, values=close）
-        直接計算 YoY，回傳 [{ts_ms, key, cur, prev, yoy}]
-        ts_ms: unix milliseconds，前端 x 軸直接用
-        unit: 'month' | 'week' | 'day'
-        """
-        if series_raw is None or series_raw.empty:
-            return []
+    mo_cl = _extract_close(mo_df)
+    wk_cl = _extract_close(wk_df)
+    dy_cl = _extract_close(dy_df)
 
-        # resample 成對應週期均值
-        freq_map = {'month': 'ME', 'week': 'W-FRI', 'day': 'D'}
-        freq = freq_map.get(unit, 'D')
-        try:
-            resampled = series_raw.resample(freq).mean().dropna()
-        except Exception:
-            return []
-
-        # 轉成 list[(datetime, value)]
-        rows = [(ts.to_pydatetime(), safe_f(val))
-                for ts, val in resampled.items()
-                if safe_f(val) is not None]
-
-        if not rows:
-            return []
-
-        # 建立時間→值對照
-        ts_val = {r[0]: r[1] for r in rows}
-
-        # 一年前的時間差
-        ONE_YEAR = datetime.timedelta(days=365)
-
-        result = []
-        for dt, cur in rows:
-            prev_dt = dt - ONE_YEAR
-            # 找最近的 prev（±45天內）
-            best_prev = None
-            best_diff = datetime.timedelta(days=46)
-            for candidate_dt, candidate_val in ts_val.items():
-                diff = abs(candidate_dt - prev_dt)
-                if diff < best_diff:
-                    best_diff = diff
-                    best_prev = candidate_val
-            if best_prev is None:
-                continue
-            yoy = round((cur / best_prev - 1) * 100, 2)
-            ts_ms = int(dt.timestamp() * 1000)  # 前端用 unix ms
-            if unit == 'month':
-                key = dt.strftime("%Y-%m")
-            elif unit == 'week':
-                key = dt.strftime("%Y-W%W")
-            else:
-                key = dt.strftime("%Y-%m-%d")
-            result.append({
-                "ts":   ts_ms,
-                "key":  key,
-                "cur":  round(cur, 2),
-                "prev": round(best_prev, 2),
-                "yoy":  yoy,
-            })
-        return result
-
-    # 月/週/日 series
-    month_series = build_series(mo_cl, 'month')
-    week_series  = build_series(wk_cl, 'week')
-    day_series   = build_series(dy_cl, 'day')
-
-    # 年 series：從月線 resample 成年均值再 YoY
-    def build_year_series(series_raw):
-        if series_raw is None or series_raw.empty:
-            return []
-        try:
-            yr = series_raw.resample('YE').mean().dropna()
-        except Exception:
-            return []
-        rows = [(ts.year, safe_f(val)) for ts, val in yr.items() if safe_f(val) is not None]
-        result = []
-        yr_map = {y: v for y, v in rows}
-        for y, cur in rows:
-            prev = yr_map.get(y - 1)
-            if prev is None:
-                continue
-            yoy = round((cur / prev - 1) * 100, 2)
-            # 用每年1月1日的 ms 當 x 座標
-            ts_ms = int(datetime.datetime(y, 7, 1).timestamp() * 1000)  # 年中點
-            result.append({
-                "ts":   ts_ms,
-                "key":  str(y),
-                "cur":  round(cur, 2),
-                "prev": round(prev, 2),
-                "yoy":  yoy,
-            })
-        return result
-
-    year_series = build_year_series(mo_cl)
+    # ── 計算各週期 YoY 序列 ──────────────────────────────
+    # 年線：月線 resample 成年，再做 YoY
+    year_series  = _build_yoy_series(mo_cl, "YE",    "year")
+    # 月線：直接月均值 YoY
+    month_series = _build_yoy_series(mo_cl, "ME",    "month")
+    # 週線
+    week_series  = _build_yoy_series(wk_cl, "W-FRI", "week")
+    # 日線（最近 500 筆）
+    day_series_full = _build_yoy_series(dy_cl, "D",  "day")
+    day_series = day_series_full[-500:] if len(day_series_full) > 500 else day_series_full
 
     def latest(series):
         if not series:
             return None
         d = series[-1]
-        return {**d, "signal": signal_of(d["yoy"])}
+        return {**d, "signal": _signal(d["yoy"])}
 
-    # 最新收盤
+    # ── 最新收盤價 ────────────────────────────────────────
     latest_price = latest_change = latest_pct = None
     try:
         if dy_cl is not None and len(dy_cl) >= 2:
@@ -802,19 +825,21 @@ def get_yoy_twii():
     except Exception:
         pass
 
-    # 共識
-    all_yoys = [s[-1]["yoy"] for s in [year_series, month_series, week_series, day_series] if s]
+    # ── 共識 ──────────────────────────────────────────────
+    all_latest = [latest(s) for s in [year_series, month_series, week_series, day_series_full]]
+    all_yoys   = [d["yoy"] for d in all_latest if d]
     pos   = sum(1 for v in all_yoys if v > 1)
     neg   = sum(1 for v in all_yoys if v < -1)
     total = len(all_yoys)
-    consensus = "多頭" if total and pos >= round(total*0.7) else "空頭" if total and neg >= round(total*0.7) else "分歧"
+    if   total and pos >= round(total * 0.7): consensus = "多頭"
+    elif total and neg >= round(total * 0.7): consensus = "空頭"
+    else:                                     consensus = "分歧"
 
-    # 傳完整 history 供前端畫圖
     periods = [
-        {"id": "yearly",  "label": "年",  "data": latest(year_series),  "history": year_series},
-        {"id": "monthly", "label": "月",  "data": latest(month_series), "history": month_series},
-        {"id": "weekly",  "label": "週",  "data": latest(week_series),  "history": week_series},
-        {"id": "daily",   "label": "日",  "data": latest(day_series),   "history": day_series[-500:]},
+        {"id": "yearly",  "label": "年", "data": latest(year_series),  "history": year_series},
+        {"id": "monthly", "label": "月", "data": latest(month_series), "history": month_series},
+        {"id": "weekly",  "label": "週", "data": latest(week_series),  "history": week_series},
+        {"id": "daily",   "label": "日", "data": latest(day_series),   "history": day_series},
     ]
 
     result = {
