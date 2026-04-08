@@ -23,7 +23,8 @@ input,select,button{font-family:inherit}button{cursor:pointer}
 #app{display:none}
 @media(min-width:769px){
   html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden}
-  #app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex!important;flex-direction:row;overflow:hidden}
+  #app{position:fixed;top:0;left:0;right:0;bottom:0;flex-direction:row;overflow:hidden}
+  #app.ready{display:flex}
   .app-layout{display:contents}
   .sidebar{width:280px;height:100%;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
   .sidebar-header{padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -323,13 +324,14 @@ async function apiFetch(path,opts={}){const headers={'Content-Type':'application
 // ── LOGIN ──
 $('login-btn').onclick=async()=>{const email=$('login-email').value.trim(),pwd=$('login-pwd').value;$('login-error').textContent='';if(!email||!pwd){$('login-error').textContent='請輸入 Email 和密碼';return}try{$('login-btn').textContent='登入中...';$('login-btn').disabled=true;const data=await fetch(API+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pwd})});if(!data.ok){const err=await data.json();throw new Error(err.detail||'登入失敗')}const res=await data.json();token=res.token;username=res.username;userRole=res.role;localStorage.setItem('sr_token',token);localStorage.setItem('sr_username',username);localStorage.setItem('sr_role',userRole);await initApp()}catch(e){$('login-error').textContent=e.message}finally{$('login-btn').textContent='🔐 登入';$('login-btn').disabled=false}};
 $('login-pwd').addEventListener('keydown',e=>{if(e.key==='Enter')$('login-btn').click()});
-function doLogout(){localStorage.removeItem('sr_token');localStorage.removeItem('sr_username');localStorage.removeItem('sr_role');token='';username='';userRole='';$('app').style.display='none';$('login-screen').style.display='flex'}
+function doLogout(){localStorage.removeItem('sr_token');localStorage.removeItem('sr_username');localStorage.removeItem('sr_role');token='';username='';userRole='';$('app').classList.remove('ready');$('app').style.display='none';$('login-screen').style.display='flex'}
 $('logout-btn').onclick=doLogout;
 
 // ── INIT ──
 async function initApp(){
   $('login-screen').style.display='none';
-  if(window.innerWidth<=768)$('app').style.display='block';else $('app').style.removeProperty('display');
+  $('app').classList.add('ready');
+  if(window.innerWidth<=768)$('app').style.display='block';
   $('sb-username').textContent=username;$('sb-role').textContent=userRole==='vip'?'⭐ VIP 會員':userRole==='admin'?'🔧 管理員':'👤 會員';
   const mc=$('main-content'),ld=document.createElement('div');ld.id='broker-loading';ld.className='status-msg status-info';ld.style.margin='0 0 10px';ld.innerHTML='<div class="loading"><div class="spinner"></div>正在連線伺服器，首次啟動約需 30~60 秒...</div>';mc.insertBefore(ld,mc.firstChild);
   try{const [tree,map,geo]=await Promise.all([apiFetch('/api/brokers/tree'),apiFetch('/api/brokers/map'),apiFetch('/api/brokers/geo')]);brokerTree=tree;brokerMap=map;geoMap=geo;buildT1Selects();buildT3Selects();buildT4BrSelect();ld.remove()}catch(e){ld.className='status-msg status-error';ld.innerHTML=`⚠️ 伺服器連線失敗。(${e.message})`}
