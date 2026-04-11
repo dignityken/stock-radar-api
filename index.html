@@ -522,22 +522,35 @@ async function runVipCompare(){
   const aRows=filterRange(aStart,endDate);
   const bRows=filterRange(bStart,endDate);
 
-  // 建 key Set（股票代號||分點名稱）
+  // A、B 各自的「股票+分點」組合 Set（不含日期，只看有沒有出現過）
   const aKeys=new Set(aRows.map(r=>`${r['股票代號']}||${r['分點名稱']}`));
   const bKeys=new Set(bRows.map(r=>`${r['股票代號']}||${r['分點名稱']}`));
 
-  // 合併：B + A 中只有A的
-  const seen=new Set();
+  // 每個「股票+分點」只保留最新那筆 row 來顯示
+  function latestPerKey(rows){
+    const map=new Map();
+    rows.forEach(r=>{
+      const k=`${r['股票代號']}||${r['分點名稱']}`;
+      const existing=map.get(k);
+      if(!existing||(r._latestDate||'')>(existing._latestDate||''))map.set(k,r);
+    });
+    return map;
+  }
+
+  const aMap=latestPerKey(aRows);
+  const bMap=latestPerKey(bRows);
+  const allKeys=new Set([...aKeys,...bKeys]);
+
   const compareResult=[];
-  bRows.forEach(r=>{
-    const k=`${r['股票代號']}||${r['分點名稱']}`;
-    if(seen.has(k))return;seen.add(k);
-    compareResult.push({...r,_cmp:aKeys.has(k)?'cont':'new'});
-  });
-  aRows.forEach(r=>{
-    const k=`${r['股票代號']}||${r['分點名稱']}`;
-    if(seen.has(k))return;seen.add(k);
-    compareResult.push({...r,_cmp:'exit'});
+  allKeys.forEach(k=>{
+    const inA=aKeys.has(k),inB=bKeys.has(k);
+    // 優先取 B 的那筆來顯示，沒有才取 A 的
+    const row=bMap.get(k)||aMap.get(k);
+    let cmp;
+    if(inA&&inB)cmp='cont';
+    else if(inB&&!inA)cmp='new';
+    else cmp='exit';
+    compareResult.push({...row,_cmp:cmp});
   });
 
   const cont=compareResult.filter(r=>r._cmp==='cont').length;
@@ -665,12 +678,36 @@ async function mobileRunCompare(){
   }
   const aStart=$('m-vip-a-start').value,bStart=$('m-vip-b-start').value,endDate=$('m-vip-end-cmp').value;
   const dir=$('m-vip-dir').value,minAmt=parseFloat($('m-vip-score').value)||0,minPct=parseFloat($('m-vip-pct').value)||0,minVol=parseFloat($('m-vip-vol').value)||0;
-  const filter=(start,end)=>vipScanData.filter(r=>{if(r._latestDate){if(start&&r._latestDate<start)return false;if(end&&r._latestDate>end)return false}if(dir!=='全部'&&r['方向']!==dir)return false;if(parseFloat(r['金額(萬)']||0)<minAmt)return false;if(parseFloat(r['佔比%']||0)<minPct)return false;if(parseFloat(r['張數']||0)<minVol)return false;return true});
+  const filter=(start,end)=>vipScanData.filter(r=>{
+    if(r._latestDate){if(start&&r._latestDate<start)return false;if(end&&r._latestDate>end)return false}
+    if(dir!=='全部'&&r['方向']!==dir)return false;
+    if(parseFloat(r['金額(萬)']||0)<minAmt)return false;
+    if(parseFloat(r['佔比%']||0)<minPct)return false;
+    if(parseFloat(r['張數']||0)<minVol)return false;
+    return true;
+  });
   const aRows=filter(aStart,endDate),bRows=filter(bStart,endDate);
   const aKeys=new Set(aRows.map(r=>`${r['股票代號']}||${r['分點名稱']}`));
-  const seen=new Set(),result=[];
-  bRows.forEach(r=>{const k=`${r['股票代號']}||${r['分點名稱']}`;if(seen.has(k))return;seen.add(k);result.push({...r,_cmp:aKeys.has(k)?'cont':'new'})});
-  aRows.forEach(r=>{const k=`${r['股票代號']}||${r['分點名稱']}`;if(seen.has(k))return;seen.add(k);result.push({...r,_cmp:'exit'})});
+  const bKeys=new Set(bRows.map(r=>`${r['股票代號']}||${r['分點名稱']}`));
+
+  function latestPerKey(rows){
+    const map=new Map();
+    rows.forEach(r=>{
+      const k=`${r['股票代號']}||${r['分點名稱']}`;
+      const existing=map.get(k);
+      if(!existing||(r._latestDate||'')>(existing._latestDate||''))map.set(k,r);
+    });
+    return map;
+  }
+  const aMap=latestPerKey(aRows),bMap=latestPerKey(bRows);
+  const allKeys=new Set([...aKeys,...bKeys]);
+  const result=[];
+  allKeys.forEach(k=>{
+    const inA=aKeys.has(k),inB=bKeys.has(k);
+    const row=bMap.get(k)||aMap.get(k);
+    result.push({...row,_cmp:inA&&inB?'cont':inB?'new':'exit'});
+  });
+
   const cont=result.filter(r=>r._cmp==='cont').length,newIn=result.filter(r=>r._cmp==='new').length,exit=result.filter(r=>r._cmp==='exit').length;
   $('m-vip-caption').textContent=`🟡持續${cont} 🟢新進${newIn} ⚪已退${exit}`;
   result.sort((a,b)=>({cont:0,new:1,exit:2}[a._cmp]-({cont:0,new:1,exit:2}[b._cmp])));
