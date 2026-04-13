@@ -591,7 +591,7 @@ async def warmup_cache():
         await asyncio.sleep(3)  # 等 GSheets 連線初始化
         try:
             now = datetime.datetime.now().timestamp()
-            for sheet in ["ScanResult", "ScanResult_W"]:
+            for sheet in ["ScanResult", "ScanResult_W", "ScanResult_S"]:
                 ws = get_worksheet(sheet)
                 if ws:
                     data = ws.get_all_records()
