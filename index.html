@@ -152,7 +152,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
             <button class="vip-mode-btn" id="vip-mode-compare" onclick="setVipMode('compare')">🔍 比對</button>
           </div>
 
-          <div><label>K線週期</label><select id="vip-period"><option value="ScanResult">日線</option><option value="ScanResult_W">週線</option></select></div>
+          <div><label>K線週期</label><select id="vip-period"><option value="ScanResult">日線</option><option value="ScanResult_W">週線</option><option value="ScanResult_S">特殊(大3股2)</option></select></div>
 
           <!-- 普通模式：起訖日期 -->
           <div id="vip-normal-dates">
@@ -196,7 +196,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
                 <button class="vip-mode-btn active" id="m-vip-mode-normal" onclick="setMobileVipMode('normal')">📋 篩選</button>
                 <button class="vip-mode-btn" id="m-vip-mode-compare" onclick="setMobileVipMode('compare')">🔍 比對</button>
               </div>
-              <div><label>K線週期</label><select id="m-vip-period"><option value="ScanResult">日線</option><option value="ScanResult_W">週線</option></select></div>
+              <div><label>K線週期</label><select id="m-vip-period"><option value="ScanResult">日線</option><option value="ScanResult_W">週線</option><option value="ScanResult_S">特殊(大3股2)</option></select></div>
               <div id="m-vip-normal-dates">
                 <div><label>起始日</label><input type="date" id="m-vip-start"></div>
                 <div><label>結束日</label><input type="date" id="m-vip-end"></div>
@@ -389,8 +389,6 @@ $('t4-fav-btn').onclick=async()=>{const sid=$('t4-sid').value.trim().toUpperCase
 // ══════════════════════════════════════
 // VIP 掃描清單（桌面版）
 // ══════════════════════════════════════
-
-// 模式切換
 function setVipMode(mode){
   vipMode=mode;
   $('vip-mode-normal').classList.toggle('active',mode==='normal');
@@ -402,13 +400,11 @@ function setVipMode(mode){
 }
 
 function initVipPanel(){
-  // 設預設日期
   $('vip-start').value=daysAgo(60);
   $('vip-end').value=today();
   $('vip-a-start').value=daysAgo(10);
   $('vip-b-start').value=daysAgo(5);
   $('vip-end-cmp').value=today();
-
   $('vip-period').onchange=()=>{vipScanData=[];$('vip-caption').textContent=''};
   $('vip-apply-btn').onclick=()=>{
     const btn=$('vip-apply-btn');btn.disabled=true;btn.textContent='⏳ 篩選中...';
@@ -418,16 +414,12 @@ function initVipPanel(){
   };
 }
 
-// ── 普通篩選 ──
 async function loadAndFilterVip(){
   const sheet=$('vip-period').value;
   if(!vipScanData.length||vipScanData._sheet!==sheet){
     $('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入...</div>';
-    try{
-      const raw=await apiFetch(`/api/vip/scan?sheet=${sheet}`);
-      _enrichVipRows(raw);
-      vipScanData=raw;vipScanData._sheet=sheet;
-    }catch(e){$('vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`;return}
+    try{const raw=await apiFetch(`/api/vip/scan?sheet=${sheet}`);_enrichVipRows(raw);vipScanData=raw;vipScanData._sheet=sheet}
+    catch(e){$('vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`;return}
   }
   applyVipFilter();
 }
@@ -454,18 +446,10 @@ function _enrichVipRows(rows){
 function _todayParts(){const t=new Date();return[t.getFullYear(),t.getMonth(),t.getDate()]}
 
 function applyVipFilter(){
-  const startDate=$('vip-start').value;
-  const endDate=$('vip-end').value;
-  const dir=$('vip-dir').value;
-  const minAmt=parseFloat($('vip-score').value)||0;
-  const minPct=parseFloat($('vip-pct').value)||0;
-  const minVol=parseFloat($('vip-vol').value)||0;
-
+  const startDate=$('vip-start').value,endDate=$('vip-end').value;
+  const dir=$('vip-dir').value,minAmt=parseFloat($('vip-score').value)||0,minPct=parseFloat($('vip-pct').value)||0,minVol=parseFloat($('vip-vol').value)||0;
   vipFiltered=vipScanData.filter(r=>{
-    if(r._latestDate){
-      if(startDate&&r._latestDate<startDate)return false;
-      if(endDate&&r._latestDate>endDate)return false;
-    }
+    if(r._latestDate){if(startDate&&r._latestDate<startDate)return false;if(endDate&&r._latestDate>endDate)return false}
     if(dir!=='全部'&&r['方向']!==dir)return false;
     if(parseFloat(r['金額(萬)']||0)<minAmt)return false;
     if(parseFloat(r['佔比%']||0)<minPct)return false;
@@ -478,20 +462,17 @@ function applyVipFilter(){
     if(sortBy==='_match')return String(a._match||'').localeCompare(String(b._match||''));
     const va=parseFloat(a[sortBy]??0)||a._score||0,vb=parseFloat(b[sortBy]??0)||b._score||0;return vb-va;
   });
-
   const brokerSel=$('vip-broker-sel'),curBr=brokerSel.value;
   brokerSel.innerHTML='<option>全部分點</option>';
   const counts={};vipFiltered.forEach(r=>{const b=r['分點名稱']||'';if(b)counts[b]=(counts[b]||0)+1});
   Object.entries(counts).sort((a,b)=>b[1]-a[1]).forEach(([br,cnt])=>brokerSel.appendChild(el('option',{value:br,text:`${br}（${cnt}）`})));
   if([...brokerSel.options].find(o=>o.value===curBr))brokerSel.value=curBr;
   brokerSel.onchange=renderVipTable;
-
   $('vip-caption').textContent=`${startDate}～${endDate} 共 ${vipFiltered.length} 檔`;
   if(window.innerWidth>768){const ov=$('vip-overlay');ov.classList.add('open');ov.style.display='flex';$('vip-overlay-caption').textContent=`${startDate}～${endDate} 共 ${vipFiltered.length} 檔`}
   renderVipTable();
 }
 
-// ── 比對模式 ──
 async function runVipCompare(){
   const sheet=$('vip-period').value;
   if(!vipScanData.length||vipScanData._sheet!==sheet){
@@ -499,15 +480,8 @@ async function runVipCompare(){
     try{const raw=await apiFetch(`/api/vip/scan?sheet=${sheet}`);_enrichVipRows(raw);vipScanData=raw;vipScanData._sheet=sheet}
     catch(e){$('vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`;return}
   }
-
-  const aStart=$('vip-a-start').value;
-  const bStart=$('vip-b-start').value;
-  const endDate=$('vip-end-cmp').value;
-  const minAmt=parseFloat($('vip-score').value)||0;
-  const minPct=parseFloat($('vip-pct').value)||0;
-  const minVol=parseFloat($('vip-vol').value)||0;
-  const dir=$('vip-dir').value;
-
+  const aStart=$('vip-a-start').value,bStart=$('vip-b-start').value,endDate=$('vip-end-cmp').value;
+  const minAmt=parseFloat($('vip-score').value)||0,minPct=parseFloat($('vip-pct').value)||0,minVol=parseFloat($('vip-vol').value)||0,dir=$('vip-dir').value;
   function filterRange(start,end){
     return vipScanData.filter(r=>{
       if(r._latestDate){if(start&&r._latestDate<start)return false;if(end&&r._latestDate>end)return false}
@@ -518,102 +492,52 @@ async function runVipCompare(){
       return true;
     });
   }
-
-  const aRows=filterRange(aStart,endDate);
-  const bRows=filterRange(bStart,endDate);
-
-  // A、B 各自的「股票+分點」組合 Set（不含日期，只看有沒有出現過）
+  const aRows=filterRange(aStart,endDate),bRows=filterRange(bStart,endDate);
   const aKeys=new Set(aRows.map(r=>`${r['股票代號']}||${r['分點名稱']}`));
   const bKeys=new Set(bRows.map(r=>`${r['股票代號']}||${r['分點名稱']}`));
-
-  // 每個「股票+分點」只保留最新那筆 row 來顯示
-  function latestPerKey(rows){
-    const map=new Map();
-    rows.forEach(r=>{
-      const k=`${r['股票代號']}||${r['分點名稱']}`;
-      const existing=map.get(k);
-      if(!existing||(r._latestDate||'')>(existing._latestDate||''))map.set(k,r);
-    });
-    return map;
-  }
-
-  const aMap=latestPerKey(aRows);
-  const bMap=latestPerKey(bRows);
+  function latestPerKey(rows){const map=new Map();rows.forEach(r=>{const k=`${r['股票代號']}||${r['分點名稱']}`;const ex=map.get(k);if(!ex||(r._latestDate||'')>(ex._latestDate||''))map.set(k,r)});return map}
+  const aMap=latestPerKey(aRows),bMap=latestPerKey(bRows);
   const allKeys=new Set([...aKeys,...bKeys]);
-
   const compareResult=[];
   allKeys.forEach(k=>{
-    const inA=aKeys.has(k),inB=bKeys.has(k);
-    // 優先取 B 的那筆來顯示，沒有才取 A 的
-    const row=bMap.get(k)||aMap.get(k);
-    let cmp;
-    if(inA&&inB)cmp='cont';
-    else if(inB&&!inA)cmp='new';
-    else cmp='exit';
+    const inA=aKeys.has(k),inB=bKeys.has(k),row=bMap.get(k)||aMap.get(k);
+    let cmp;if(inA&&inB)cmp='cont';else if(inB&&!inA)cmp='new';else cmp='exit';
     compareResult.push({...row,_cmp:cmp});
   });
-
-  const cont=compareResult.filter(r=>r._cmp==='cont').length;
-  const newIn=compareResult.filter(r=>r._cmp==='new').length;
-  const exit=compareResult.filter(r=>r._cmp==='exit').length;
-
+  const cont=compareResult.filter(r=>r._cmp==='cont').length,newIn=compareResult.filter(r=>r._cmp==='new').length,exit=compareResult.filter(r=>r._cmp==='exit').length;
   const caption=`A:${aStart}～${endDate}　B:${bStart}～${endDate}　🟡持續${cont} 🟢新進${newIn} ⚪已退${exit}`;
   $('vip-caption').textContent=caption;
   if(window.innerWidth>768){const ov=$('vip-overlay');ov.classList.add('open');ov.style.display='flex';$('vip-overlay-caption').textContent=caption}
-
   renderVipCompareTable(compareResult);
 }
 
 function renderVipCompareTable(rows){
   const wrap=$('vip-table-wrap');
   if(!rows.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>';return}
-
   const tbl=el('table',{class:'vip-table'}),thead=el('thead');
   thead.appendChild(tr(th('📊'),th('🗂️'),th('狀態'),th('代號'),th('名稱'),th('分點'),th('方向'),th('符合'),th('張數'),th('金額'),th('佔比%'),th('日期')));
-  tbl.appendChild(thead);
-  const tbody=el('tbody');
-
-  // 排序：持續→新進→已退
-  const order={cont:0,new:1,exit:2};
-  rows.sort((a,b)=>order[a._cmp]-order[b._cmp]);
-
+  tbl.appendChild(thead);const tbody=el('tbody');
+  const order={cont:0,new:1,exit:2};rows.sort((a,b)=>order[a._cmp]-order[b._cmp]);
   rows.forEach(row=>{
     const sid=String(row['股票代號']||'').trim(),br=String(row['分點名稱']||'').trim(),key=`${sid}||${br}`;
-    const loadCb=el('input',{type:'checkbox',title:'載入K線'});
-    loadCb.onchange=()=>{if(loadCb.checked){const o=$('vip-overlay');o.classList.remove('open');o.style.display='';switchToT4(sid,br);loadCb.checked=false}};
-    const selCb=el('input',{type:'checkbox'});
-    if(vipSelected.has(key))selCb.checked=true;
-    selCb.onchange=()=>{if(selCb.checked)vipSelected.add(key);else vipSelected.delete(key)};
-
-    let tagEl;
-    if(row._cmp==='cont')tagEl=el('span',{class:'tag-cont',text:'🟡持續'});
-    else if(row._cmp==='new')tagEl=el('span',{class:'tag-new',text:'🟢新進'});
-    else tagEl=el('span',{class:'tag-exit',text:'⚪已退'});
+    const loadCb=el('input',{type:'checkbox',title:'載入K線'});loadCb.onchange=()=>{if(loadCb.checked){const o=$('vip-overlay');o.classList.remove('open');o.style.display='';switchToT4(sid,br);loadCb.checked=false}};
+    const selCb=el('input',{type:'checkbox'});if(vipSelected.has(key))selCb.checked=true;selCb.onchange=()=>{if(selCb.checked)vipSelected.add(key);else vipSelected.delete(key)};
+    let tagEl;if(row._cmp==='cont')tagEl=el('span',{class:'tag-cont',text:'🟡持續'});else if(row._cmp==='new')tagEl=el('span',{class:'tag-new',text:'🟢新進'});else tagEl=el('span',{class:'tag-exit',text:'⚪已退'});
     const tagTd=el('td');tagTd.appendChild(tagEl);
-
     const r=tr(td(loadCb),td(selCb),tagTd,td({text:sid}),td({text:String(row['股票名稱']||'')}),td({text:br}),td({text:String(row['方向']||'')}),td({text:row._match||''}),td({text:String(row['張數']||'')}),td({text:String(row['金額(萬)']||'')}),td({text:String(row['佔比%']||'')}),td({text:String(row['最新訊號日']||'').slice(0,10)}));
-
-    // 已退列淡化
-    if(row._cmp==='exit')r.style.opacity='0.45';
-    tbody.appendChild(r);
+    if(row._cmp==='exit')r.style.opacity='0.45';tbody.appendChild(r);
   });
   tbl.appendChild(tbody);
-
   const topBar=document.createElement('div');topBar.style.cssText='display:flex;gap:6px;margin-bottom:6px;flex-shrink:0';
-  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'});addBtn.style.cssText='flex:1;padding:6px 8px;font-size:.78rem';
-  topBar.appendChild(addBtn);
+  const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'});addBtn.style.cssText='flex:1;padding:6px 8px;font-size:.78rem';topBar.appendChild(addBtn);
   addBtn.onclick=async()=>{if(!vipSelected.size){alert('請先勾選');return}let added=0;vipSelected.forEach(k=>{const[s,b]=k.split('||');const dataRow=vipScanData.find(r=>String(r['股票代號']||'')==s&&String(r['分點名稱']||'')==b);const sname=dataRow?String(dataRow['股票名稱']||''):'';if(!workingGroup.find(w=>w['股票代號']===s&&w['追蹤分點']===b)){workingGroup.push({'股票代號':s,'股票名稱':sname,'追蹤分點':b});added++}});if(added){await saveWorkingGroup();renderWorkingGroup();vipSelected.clear();alert(`✅ 已加入 ${added} 檔`)}else alert('全部已在工作組中')};
-
   wrap.innerHTML='';wrap.appendChild(topBar);
-  const scrollWrap=document.createElement('div');scrollWrap.className='vip-scroll-wrap';scrollWrap.appendChild(tbl);
-  wrap.appendChild(scrollWrap);$('vip-sel-wrap').innerHTML='';
+  const scrollWrap=document.createElement('div');scrollWrap.className='vip-scroll-wrap';scrollWrap.appendChild(tbl);wrap.appendChild(scrollWrap);$('vip-sel-wrap').innerHTML='';
 }
 
 function renderVipTable(){
-  const selBr=$('vip-broker-sel').value;
-  let rows=vipFiltered;if(selBr!=='全部分點')rows=rows.filter(r=>r['分點名稱']===selBr);
-  const wrap=$('vip-table-wrap');
-  if(!rows.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>';return}
+  const selBr=$('vip-broker-sel').value;let rows=vipFiltered;if(selBr!=='全部分點')rows=rows.filter(r=>r['分點名稱']===selBr);
+  const wrap=$('vip-table-wrap');if(!rows.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>';return}
   const topBar=document.createElement('div');topBar.className='vip-top-bar';topBar.style.cssText='display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;flex-shrink:0';
   const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'});addBtn.style.cssText='flex:1;padding:6px 8px;font-size:.78rem';
   const selAllBtn=el('button',{class:'vip-add-btn',text:'☑ 全選'});selAllBtn.style.cssText='padding:6px 10px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
@@ -643,9 +567,7 @@ function initMobileVipPanel(){
   $('m-vip-start').value=daysAgo(60);$('m-vip-end').value=today();
   $('m-vip-a-start').value=daysAgo(10);$('m-vip-b-start').value=daysAgo(5);$('m-vip-end-cmp').value=today();
   $('m-vip-period').onchange=()=>{vipScanData=[];$('m-vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem">週期已切換，請按「套用篩選」</div>'};
-  $('m-vip-apply-btn').onclick=()=>{
-    if(mobileVipMode==='compare')mobileRunCompare();else mobileApplyVipFilter();
-  };
+  $('m-vip-apply-btn').onclick=()=>{if(mobileVipMode==='compare')mobileRunCompare();else mobileApplyVipFilter()};
   $('m-vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem;padding:6px 0">請設定篩選條件後按「🔍 套用篩選」</div>';
 }
 
@@ -681,33 +603,15 @@ async function mobileRunCompare(){
   const filter=(start,end)=>vipScanData.filter(r=>{
     if(r._latestDate){if(start&&r._latestDate<start)return false;if(end&&r._latestDate>end)return false}
     if(dir!=='全部'&&r['方向']!==dir)return false;
-    if(parseFloat(r['金額(萬)']||0)<minAmt)return false;
-    if(parseFloat(r['佔比%']||0)<minPct)return false;
-    if(parseFloat(r['張數']||0)<minVol)return false;
-    return true;
+    if(parseFloat(r['金額(萬)']||0)<minAmt)return false;if(parseFloat(r['佔比%']||0)<minPct)return false;if(parseFloat(r['張數']||0)<minVol)return false;return true;
   });
   const aRows=filter(aStart,endDate),bRows=filter(bStart,endDate);
   const aKeys=new Set(aRows.map(r=>`${r['股票代號']}||${r['分點名稱']}`));
   const bKeys=new Set(bRows.map(r=>`${r['股票代號']}||${r['分點名稱']}`));
-
-  function latestPerKey(rows){
-    const map=new Map();
-    rows.forEach(r=>{
-      const k=`${r['股票代號']}||${r['分點名稱']}`;
-      const existing=map.get(k);
-      if(!existing||(r._latestDate||'')>(existing._latestDate||''))map.set(k,r);
-    });
-    return map;
-  }
+  function latestPerKey(rows){const map=new Map();rows.forEach(r=>{const k=`${r['股票代號']}||${r['分點名稱']}`;const ex=map.get(k);if(!ex||(r._latestDate||'')>(ex._latestDate||''))map.set(k,r)});return map}
   const aMap=latestPerKey(aRows),bMap=latestPerKey(bRows);
-  const allKeys=new Set([...aKeys,...bKeys]);
-  const result=[];
-  allKeys.forEach(k=>{
-    const inA=aKeys.has(k),inB=bKeys.has(k);
-    const row=bMap.get(k)||aMap.get(k);
-    result.push({...row,_cmp:inA&&inB?'cont':inB?'new':'exit'});
-  });
-
+  const allKeys=new Set([...aKeys,...bKeys]);const result=[];
+  allKeys.forEach(k=>{const inA=aKeys.has(k),inB=bKeys.has(k),row=bMap.get(k)||aMap.get(k);result.push({...row,_cmp:inA&&inB?'cont':inB?'new':'exit'})});
   const cont=result.filter(r=>r._cmp==='cont').length,newIn=result.filter(r=>r._cmp==='new').length,exit=result.filter(r=>r._cmp==='exit').length;
   $('m-vip-caption').textContent=`🟡持續${cont} 🟢新進${newIn} ⚪已退${exit}`;
   result.sort((a,b)=>({cont:0,new:1,exit:2}[a._cmp]-({cont:0,new:1,exit:2}[b._cmp])));
@@ -715,8 +619,7 @@ async function mobileRunCompare(){
 }
 
 function _renderMobileVipTable(rows,mode){
-  const wrap=$('m-vip-table-wrap');
-  if(!rows.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>';return}
+  const wrap=$('m-vip-table-wrap');if(!rows.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>';return}
   const topBar=document.createElement('div');topBar.style.cssText='display:flex;gap:4px;margin-bottom:6px';
   const addBtn=el('button',{class:'vip-add-btn',text:'🗂️ 加入工作組'});addBtn.style.cssText='flex:1;padding:5px 8px;font-size:.78rem';
   const selAllBtn=el('button',{class:'vip-add-btn',text:'☑ 全選'});selAllBtn.style.cssText='padding:5px 8px;font-size:.78rem;background:var(--bg3);border:1px solid var(--border);color:var(--text)';
