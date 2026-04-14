@@ -368,29 +368,12 @@ $('t4-draw-btn').onclick=drawChart;
 
 async function fetchTxfMacdState(startY){
   try{
-    // 直接抓 Yahoo Finance TXF=F，不走後端避免 fallback 到 ^TWII
-    const p1=Math.floor(new Date('2013-01-01').getTime()/1000);
-    const p2=Math.floor(Date.now()/1000)+86400;
-    const url=`https://query1.finance.yahoo.com/v8/finance/chart/TXF=F?period1=${p1}&period2=${p2}&interval=1d&includePrePost=false`;
-    const res=await fetch(url);
-    if(!res.ok)throw new Error('TXF fetch failed');
-    const json=await res.json();
-    const result=json?.chart?.result?.[0];
-    if(!result)throw new Error('no data');
-    const timestamps=result.timestamp||[];
-    const closes=(result.indicators?.quote?.[0]?.close)||[];
-    const kdata=[];
-    for(let i=0;i<timestamps.length;i++){
-      const c=closes[i];
-      if(c==null||isNaN(c))continue;
-      const dateStr=new Date(timestamps[i]*1000).toISOString().split('T')[0];
-      kdata.push({Date:dateStr,Close:c});
-    }
-    if(!kdata.length)return{};
-    const closes2=kdata.map(d=>d.Close);
+    const res=await apiFetch(`/api/txf/kline?start=2013-01-01`);
+    const kdata=res.data||[];if(!kdata.length)return{};
+    const closes=kdata.map(d=>d.Close);
     const k12=2/(12+1),k26=2/(26+1),k9=2/(9+1);
     const e12=[],e26=[];
-    closes2.forEach((v,i)=>{e12.push(i===0?v:v*k12+e12[i-1]*(1-k12));e26.push(i===0?v:v*k26+e26[i-1]*(1-k26))});
+    closes.forEach((v,i)=>{e12.push(i===0?v:v*k12+e12[i-1]*(1-k12));e26.push(i===0?v:v*k26+e26[i-1]*(1-k26))});
     const macd=e12.map((v,i)=>v-e26[i]);
     const sig=[];macd.forEach((v,i)=>{sig.push(i===0?v:v*k9+sig[i-1]*(1-k9))});
     const hist=macd.map((v,i)=>v-sig[i]);
