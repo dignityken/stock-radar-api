@@ -378,17 +378,20 @@ async function fetchTxfMacdState(startY){
     const sig=[];macd.forEach((v,i)=>{sig.push(i===0?v:v*k9+sig[i-1]*(1-k9))});
     const hist=macd.map((v,i)=>v-sig[i]);
     const stateMap={};
-    let lastCrossDownAbove0=false;
     let txfState=0;
     for(let i=1;i<kdata.length;i++){
       const date=kdata[i].Date,hNow=hist[i],hPrev=hist[i-1],mNow=macd[i];
       const crossUp=hPrev<=0&&hNow>0,crossDown=hPrev>=0&&hNow<0;
-      if(crossDown){
-        if(mNow>0){lastCrossDownAbove0=true;txfState=2;}
-        else{lastCrossDownAbove0=false;txfState=0;}
-      } else if(crossUp&&mNow>0){
-        txfState=lastCrossDownAbove0?3:1;
-        lastCrossDownAbove0=false;
+      if(crossUp){
+        if(mNow>0){
+          if(txfState===2) txfState=3;      // 2之後翻紅 → 3
+          else txfState=1;                   // 其他情況翻紅(macd>0) → 1
+        } else {
+          txfState=0;                        // macd<=0，破零軸，重置
+        }
+      } else if(crossDown){
+        if(txfState===1&&mNow>0) txfState=2; // 1之後轉綠且macd>0 → 2
+        else txfState=0;                      // 其他情況 → 重置
       }
       stateMap[date]=txfState;
     }
@@ -425,19 +428,21 @@ async function drawChart(){
     const diamondMarkers=[];
     if(isDailyMode){
       // 追蹤股票目前所在的狀態（持續狀態，不只是轉換日）
-      let stockState=0; // 0=未知, 1=第一波紅柱, 2=回調綠柱(macd>0), 3=再次翻紅
-      let stockLastCrossDownAbove0=false;
+      let stockState=0;
       for(let i=1;i<merged.length;i++){
         const d=merged[i],dp=merged[i-1],hNow=d.M1_hist,hPrev=dp.M1_hist,mNow=d.M1_macd;
-        const crossDown=hPrev>=0&&hNow<0, crossUp=hPrev<=0&&hNow>0;
-        if(crossDown){
-          if(mNow>0){stockLastCrossDownAbove0=true;stockState=2;}
-          else{stockLastCrossDownAbove0=false;stockState=0;}
-        } else if(crossUp&&mNow>0){
-          stockState=stockLastCrossDownAbove0?3:1;
-          stockLastCrossDownAbove0=false;
+        const crossUp=hPrev<=0&&hNow>0,crossDown=hPrev>=0&&hNow<0;
+        if(crossUp){
+          if(mNow>0){
+            if(stockState===2) stockState=3;
+            else stockState=1;
+          } else {
+            stockState=0;
+          }
+        } else if(crossDown){
+          if(stockState===1&&mNow>0) stockState=2;
+          else stockState=0;
         }
-        // 非轉換日維持前一個狀態（不需要額外寫，因為 stockState 變數本身就持續）
         d._stockState=stockState;
       }
       plotData.forEach(d=>{
