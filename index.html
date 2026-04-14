@@ -443,7 +443,7 @@ async function drawChart(){
       plotData.forEach(d=>{
         if(d._stockState!==2)return;
         const txf=txfStateMap[d.date];
-        if(txf===1||txf===3)diamondMarkers.push({time:d.date,position:'belowBar',color:'#FFD600',shape:'circle',text:'◆',size:1});
+        if(txf===1||txf===3)diamondMarkers.push({time:d.date,position:'belowBar',color:'#FFD600',shape:'text',text:'◆',size:1});
       });
       diamondMarkers.sort((a,b)=>a.time>b.time?1:-1);
     }
