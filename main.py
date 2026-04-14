@@ -626,7 +626,36 @@ def reload_brokers():
     msg = f"更新成功！最新分點數量：{len(BROKER_MAP)} 個"
     print(msg)
     return {"status": "ok", "message": msg, "total_branches": len(BROKER_MAP)}
-
+@app.get("/api/txf/kline")
+def txf_kline(start: str = "2013-01-01"):
+    import math, datetime
+    YAHOO_HEADERS = {"User-Agent": "Mozilla/5.0"}
+    for ticker in ["TXF=F", "TWF=F"]:
+        try:
+            start_dt = datetime.datetime.strptime(start, "%Y-%m-%d")
+            years = (datetime.datetime.now() - start_dt).days / 365
+            range_str = "20y" if years > 10 else "10y" if years > 5 else "5y"
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={range_str}&interval=1d&includePrePost=false"
+            r = requests.get(url, headers=YAHOO_HEADERS, timeout=20)
+            if not r.ok: continue
+            j = r.json()
+            result = j.get("chart", {}).get("result", [])
+            if not result: continue
+            result = result[0]
+            timestamps = result.get("timestamp", [])
+            quotes = result.get("indicators", {}).get("quote", [{}])[0]
+            data = []
+            for i, ts in enumerate(timestamps):
+                c = quotes.get("close", [])[i] if i < len(quotes.get("close", [])) else None
+                if c is None or (isinstance(c, float) and math.isnan(c)): continue
+                dt_str = datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
+                if dt_str < start: continue
+                data.append({"Date": dt_str, "Close": c})
+            if data:
+                return {"ticker": ticker, "data": data}
+        except Exception:
+            continue
+    return {"ticker": None, "data": []}
 @app.get("/")
 def root():
     return {"app": "stock-radar API", "version": "2.0"}
