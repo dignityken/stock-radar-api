@@ -369,7 +369,9 @@ $('t4-draw-btn').onclick=drawChart;
 async function fetchTxfMacdState(startY){
   try{
     const res=await apiFetch(`/api/txf/kline?start=2013-01-01`);
-    const kdata=res.data||[];if(!kdata.length)return{};
+    const kdata=res.data||[];
+    console.log('TXF kdata length:', kdata.length, 'first:', kdata[0], 'last:', kdata[kdata.length-1]);
+    if(!kdata.length)return{};
     const closes=kdata.map(d=>d.Close);
     const k12=2/(12+1),k26=2/(26+1),k9=2/(9+1);
     const e12=[],e26=[];
@@ -387,8 +389,10 @@ async function fetchTxfMacdState(startY){
       else if(crossDown){if(txfState===1)txfState=2;else txfState=0;}
       if(date>=startY)stateMap[date]=txfState;
     }
+    const state1or3=Object.entries(stateMap).filter(([d,s])=>s===1||s===3);
+    console.log('TXF state 1or3 count:', state1or3.length, 'samples:', state1or3.slice(0,5));
     return stateMap;
-  }catch(e){return{}}
+  }catch(e){console.error('fetchTxfMacdState error:',e);return{}}
 }
 
 async function drawChart(){
@@ -433,11 +437,14 @@ async function drawChart(){
         }
         d._stockState=stockState;
       }
+      console.log('stockState=2 dates:', plotData.filter(d=>d._stockState===2).map(d=>d.date).slice(0,5));
+      console.log('txfStateMap sample:', Object.entries(txfStateMap).slice(-10));
       plotData.forEach(d=>{
         if(d._stockState!==2)return;
         const txf=txfStateMap[d.date];
         if(txf===1||txf===3)diamondMarkers.push({time:d.date,position:'belowBar',color:'#FFD600',shape:'text',text:'◆',size:1});
       });
+      console.log('diamondMarkers count:', diamondMarkers.length);
       diamondMarkers.sort((a,b)=>a.time>b.time?1:-1);
     }
     showStatus('t4-status','');renderChart(plotData,finalPM,finalMM1,finalMM2,sid,stockName,brName||'無分點',diamondMarkers);
