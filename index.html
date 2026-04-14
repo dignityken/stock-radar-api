@@ -368,9 +368,9 @@ $('t4-draw-btn').onclick=drawChart;
 
 async function fetchTxfMacdState(startY){
   try{
-    const res=await apiFetch(`/api/txf/kline?start=2013-01-01`);
+    const res=await apiFetch(`/api/stock/kline?sid=TXF=F&start=2013-01-01&interval=1d`);
     const kdata=res.data||[];
-    console.log('TXF kdata length:', kdata.length, 'first:', kdata[0], 'last:', kdata[kdata.length-1]);
+    console.log('TXF kdata length:', kdata.length, 'ticker:', res.suffix||res.ticker);
     if(!kdata.length)return{};
     const closes=kdata.map(d=>d.Close);
     const k12=2/(12+1),k26=2/(26+1),k9=2/(9+1);
