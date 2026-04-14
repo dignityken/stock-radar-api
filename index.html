@@ -379,11 +379,18 @@ async function fetchTxfMacdState(startY){
     const hist=macd.map((v,i)=>v-sig[i]);
     const stateMap={};
     let lastCrossDownAbove0=false;
+    let txfState=0;
     for(let i=1;i<kdata.length;i++){
       const date=kdata[i].Date,hNow=hist[i],hPrev=hist[i-1],mNow=macd[i];
       const crossUp=hPrev<=0&&hNow>0,crossDown=hPrev>=0&&hNow<0;
-      if(crossDown){lastCrossDownAbove0=(mNow>0);stateMap[date]=2;}
-      else if(crossUp&&mNow>0){stateMap[date]=lastCrossDownAbove0?3:1;lastCrossDownAbove0=false;}
+      if(crossDown){
+        if(mNow>0){lastCrossDownAbove0=true;txfState=2;}
+        else{lastCrossDownAbove0=false;txfState=0;}
+      } else if(crossUp&&mNow>0){
+        txfState=lastCrossDownAbove0?3:1;
+        lastCrossDownAbove0=false;
+      }
+      stateMap[date]=txfState;
     }
     return stateMap;
   }catch(e){return{}}
@@ -417,11 +424,21 @@ async function drawChart(){
     // 計算菱形標記：台指期1或3，且股票短MACD是2
     const diamondMarkers=[];
     if(isDailyMode){
+      // 追蹤股票目前所在的狀態（持續狀態，不只是轉換日）
+      let stockState=0; // 0=未知, 1=第一波紅柱, 2=回調綠柱(macd>0), 3=再次翻紅
       let stockLastCrossDownAbove0=false;
       for(let i=1;i<merged.length;i++){
         const d=merged[i],dp=merged[i-1],hNow=d.M1_hist,hPrev=dp.M1_hist,mNow=d.M1_macd;
-        if(hPrev>=0&&hNow<0){stockLastCrossDownAbove0=(mNow>0);d._stockState=2;}
-        else if(hPrev<=0&&hNow>0){d._stockState=stockLastCrossDownAbove0?3:1;stockLastCrossDownAbove0=false;}
+        const crossDown=hPrev>=0&&hNow<0, crossUp=hPrev<=0&&hNow>0;
+        if(crossDown){
+          if(mNow>0){stockLastCrossDownAbove0=true;stockState=2;}
+          else{stockLastCrossDownAbove0=false;stockState=0;}
+        } else if(crossUp&&mNow>0){
+          stockState=stockLastCrossDownAbove0?3:1;
+          stockLastCrossDownAbove0=false;
+        }
+        // 非轉換日維持前一個狀態（不需要額外寫，因為 stockState 變數本身就持續）
+        d._stockState=stockState;
       }
       plotData.forEach(d=>{
         if(d._stockState!==2)return;
