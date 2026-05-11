@@ -630,7 +630,7 @@ def reload_brokers():
 def txf_kline(start: str = "2013-01-01"):
     import math, datetime
     YAHOO_HEADERS = {"User-Agent": "Mozilla/5.0"}
-    for ticker in ["TXF=F", "TWF=F"]:
+    for ticker in ["TXF=F", "TWF=F", "^TWII"]:  # 加 "^TWII"
         try:
             start_dt = datetime.datetime.strptime(start, "%Y-%m-%d")
             years = (datetime.datetime.now() - start_dt).days / 365
