@@ -411,51 +411,64 @@ def broker_history(sid: str, br_id: str, start: str = "2015-01-01"):
 
 @app.get("/api/stock/kline")
 def stock_kline(sid: str, start: str = "2015-01-01", interval: str = "1d"):
-    """TAB4：K線資料，使用 yfinance 模組確保資料即時"""
+    """TAB4：K線資料 proxy"""
+    import math, time as time_mod
+    YAHOO_HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+    }
     is_60m = (interval == "60m")
-
-    if sid.upper() in ("TXF", "TXF=F", "台指期"):
-        tickers_to_try = ["TXF=F", "TWF=F", "^TWII"]
-    elif sid.startswith("^") or "=" in sid:
-        tickers_to_try = [sid]
+    if is_60m:
+        now = int(time_mod.time())
+        p1 = now - 60 * 86400
+        p2 = now + 86400
+        range_param = f"period1={p1}&period2={p2}"
     else:
-        tickers_to_try = [f"{sid}.TW", f"{sid}.TWO"]
-
-    period = "60d" if is_60m else "max"
-    yf_interval = "1h" if is_60m else "1d"
-
-    for ticker in tickers_to_try:
         try:
-            df = yf.download(ticker, period=period, interval=yf_interval, progress=False, auto_adjust=True)
-            if df.empty: continue
-            df = df.dropna(subset=["Close"])
-            stock_name = ticker
-            try:
-                info = yf.Ticker(ticker).info
-                stock_name = info.get("longName") or info.get("shortName") or ticker
-            except Exception:
-                pass
+            start_dt = datetime.datetime.strptime(start, "%Y-%m-%d")
+            years = (datetime.datetime.now() - start_dt).days / 365
+            range_str = "20y" if years > 10 else "10y" if years > 5 else "5y" if years > 2 else "2y"
+        except Exception:
+            range_str = "10y"
+        range_param = f"range={range_str}"
+    special = sid.startswith("^") or "=" in sid
+    if sid.upper() in ("TXF", "TXF=F", "台指期"):
+        suffixes_list = ["TXF=F", "TWF=F", "^TWII"]
+    elif special:
+        suffixes_list = [sid]
+    else:
+        suffixes_list = [f"{sid}.TW", f"{sid}.TWO"]
+    for ticker in suffixes_list:
+        try:
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?{range_param}&interval={interval}&includePrePost=false"
+            r = requests.get(url, headers=YAHOO_HEADERS, timeout=20)
+            if not r.ok: continue
+            j = r.json()
+            result = j.get("chart", {}).get("result", [])
+            if not result: continue
+            result = result[0]
+            timestamps = result.get("timestamp", [])
+            quotes = result.get("indicators", {}).get("quote", [{}])[0]
+            meta = result.get("meta", {})
+            stock_name = meta.get("longName") or meta.get("shortName") or ticker
+            if not timestamps or not quotes: continue
             data = []
-            for idx, row in df.iterrows():
-                try:
-                    o = float(row["Open"])
-                    h = float(row["High"])
-                    l = float(row["Low"])
-                    c = float(row["Close"])
-                except Exception:
-                    continue
+            for i, ts in enumerate(timestamps):
+                c = quotes.get("close", [])[i] if i < len(quotes.get("close", [])) else None
+                o = quotes.get("open", [])[i] if i < len(quotes.get("open", [])) else None
+                h = quotes.get("high", [])[i] if i < len(quotes.get("high", [])) else None
+                l = quotes.get("low", [])[i] if i < len(quotes.get("low", [])) else None
+                if c is None or (isinstance(c, float) and math.isnan(c)): continue
                 if is_60m:
-                    ts = int(idx.timestamp())
                     data.append({"Date": ts, "Open": o, "High": h, "Low": l, "Close": c})
                 else:
-                    dt_str = idx.strftime("%Y-%m-%d")
+                    dt_str = datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
                     if dt_str < start: continue
                     data.append({"Date": dt_str, "Open": o, "High": h, "Low": l, "Close": c})
             if data:
                 return {"suffix": ticker, "data": data, "stock_name": stock_name, "interval": interval}
         except Exception:
             continue
-
     raise HTTPException(404, f"找不到 {sid} 的K線資料（interval={interval}）")
 
 _vip_cache: dict = {}
