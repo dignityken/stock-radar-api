@@ -418,19 +418,19 @@ def stock_kline(sid: str, start: str = "2015-01-01", interval: str = "1d"):
         "Accept": "application/json",
     }
     is_60m = (interval == "60m")
+    now = int(time_mod.time())
     if is_60m:
-        now = int(time_mod.time())
         p1 = now - 60 * 86400
         p2 = now + 86400
         range_param = f"period1={p1}&period2={p2}"
     else:
         try:
             start_dt = datetime.datetime.strptime(start, "%Y-%m-%d")
-            years = (datetime.datetime.now() - start_dt).days / 365
-            range_str = "20y" if years > 10 else "10y" if years > 5 else "5y" if years > 2 else "2y"
+            p1 = int(start_dt.timestamp())
         except Exception:
-            range_str = "10y"
-        range_param = f"range={range_str}"
+            p1 = now - 10 * 365 * 86400
+        p2 = now + 86400  # 明天，確保拿到今天最新資料
+        range_param = f"period1={p1}&period2={p2}"
     special = sid.startswith("^") or "=" in sid
     if sid.upper() in ("TXF", "TXF=F", "台指期"):
         suffixes_list = ["TXF=F", "TWF=F", "^TWII"]
