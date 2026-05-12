@@ -466,6 +466,49 @@ def stock_kline(sid: str, start: str = "2015-01-01", interval: str = "1d"):
                     if dt_str < start: continue
                     data.append({"Date": dt_str, "Open": o, "High": h, "Low": l, "Close": c})
             if data:
+                # 日線模式：如果最新日線資料不是今天，嘗試用60分線聚合補上今日K棒
+                if not is_60m:
+                    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+                    last_date = data[-1]["Date"]
+                    if last_date < today_str:
+                        try:
+                            # 抓最近幾天的60分線
+                            p1_60 = now - 7 * 86400
+                            p2_60 = now + 86400
+                            url60 = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?period1={p1_60}&period2={p2_60}&interval=60m&includePrePost=false"
+                            r60 = requests.get(url60, headers=YAHOO_HEADERS, timeout=20)
+                            if r60.ok:
+                                j60 = r60.json()
+                                res60 = j60.get("chart", {}).get("result", [])
+                                if res60:
+                                    res60 = res60[0]
+                                    ts60 = res60.get("timestamp", [])
+                                    q60 = res60.get("indicators", {}).get("quote", [{}])[0]
+                                    # 把60分線groupby日期
+                                    by_date = {}
+                                    for i, ts in enumerate(ts60):
+                                        c = q60.get("close", [])[i] if i < len(q60.get("close", [])) else None
+                                        o = q60.get("open", [])[i] if i < len(q60.get("open", [])) else None
+                                        h = q60.get("high", [])[i] if i < len(q60.get("high", [])) else None
+                                        l = q60.get("low", [])[i] if i < len(q60.get("low", [])) else None
+                                        if c is None or (isinstance(c, float) and math.isnan(c)): continue
+                                        # Yahoo timestamp是UTC，台灣時間+8小時
+                                        dt_local = datetime.datetime.utcfromtimestamp(ts) + datetime.timedelta(hours=8)
+                                        d_str = dt_local.strftime("%Y-%m-%d")
+                                        if d_str <= last_date: continue  # 只處理 last_date 之後的日期
+                                        if d_str not in by_date:
+                                            by_date[d_str] = {"Open": o, "High": h, "Low": l, "Close": c}
+                                        else:
+                                            bd = by_date[d_str]
+                                            if h is not None and (bd["High"] is None or h > bd["High"]): bd["High"] = h
+                                            if l is not None and (bd["Low"] is None or l < bd["Low"]): bd["Low"] = l
+                                            bd["Close"] = c  # 最後一筆當收盤
+                                    # 補上日K
+                                    for d_str in sorted(by_date.keys()):
+                                        bd = by_date[d_str]
+                                        data.append({"Date": d_str, "Open": bd["Open"], "High": bd["High"], "Low": bd["Low"], "Close": bd["Close"]})
+                        except Exception:
+                            pass
                 return {"suffix": ticker, "data": data, "stock_name": stock_name, "interval": interval}
         except Exception:
             continue
