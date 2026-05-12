@@ -41,7 +41,6 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = FastAPI(title="stock-radar API")
 
-# ── CORS：允許 GitHub Pages 來源 ──
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -51,19 +50,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ==========================================
-# 環境變數
-# ==========================================
 JWT_SECRET = os.environ.get("JWT_SECRET", "change-me-in-production")
 SPREADSHEET_URL = os.environ.get("SPREADSHEET_URL", "")
-GCP_SERVICE_ACCOUNT_JSON = os.environ.get("GCP_SERVICE_ACCOUNT_JSON", "")  # JSON 字串
+GCP_SERVICE_ACCOUNT_JSON = os.environ.get("GCP_SERVICE_ACCOUNT_JSON", "")
 GOOGLE_DRIVE_HQ_DATA_URL = "https://drive.google.com/file/d/112sWHyGbfuNyOEN2M85wIhWtHj1MqKj5/view?usp=drive_link"
 GOOGLE_DRIVE_BRANCH_DATA_URL = "https://drive.google.com/file/d/1C6axJwaHq3SFRslODK8m28WRYFDd90x_/view?usp=drive_link"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
 
-# ==========================================
-# 簡易 JWT（不依賴第三方，手刻 HS256）
-# ==========================================
 def _b64url(data: bytes) -> str:
     import base64
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
@@ -101,9 +94,6 @@ def get_current_user(authorization: str = Header(None)) -> dict:
         raise HTTPException(status_code=401, detail="Missing token")
     return verify_token(authorization[7:])
 
-# ==========================================
-# Google Sheets 連線
-# ==========================================
 @lru_cache(maxsize=1)
 def get_gsheets_client():
     if not GSHEETS_AVAILABLE or not GCP_SERVICE_ACCOUNT_JSON:
@@ -156,9 +146,6 @@ def sheets_save(sheet_name: str, username: str, data: list) -> bool:
     except Exception:
         return False
 
-# ==========================================
-# 券商資料庫（啟動時載入一次）
-# ==========================================
 def _download_drive(url: str) -> Optional[str]:
     file_id = url.split("/")[-2]
     dl_url = f"https://drive.google.com/uc?export=download&id={file_id}&t={int(time.time())}"
@@ -207,7 +194,6 @@ def _build_broker_db(raw: str, hq_map: dict):
             branches[final_bname] = bid
             name_map[final_bname] = {"hq_id": bid, "br_id": bid, "hq_name": final_bname}
         tree[final_bname] = {"bid": bid, "branches": branches}
-    # dedup
     final_tree = {}
     for hq_name, hq_data in tree.items():
         seen = set(); unique = {}
@@ -226,7 +212,6 @@ _HQ_DATA = _load_hq()
 _RAW_BRANCH = _load_branches()
 UI_TREE, BROKER_MAP = _build_broker_db(_RAW_BRANCH, _HQ_DATA)
 
-# GEO_MAP
 GEO_MAP = {}
 for br_name, br_info in BROKER_MAP.items():
     if "-" in br_name:
@@ -237,9 +222,6 @@ for br_name, br_info in BROKER_MAP.items():
 
 print(f"券商資料庫載入完成：{len(BROKER_MAP)} 個分點，{len(GEO_MAP)} 個地緣關鍵字")
 
-# ==========================================
-# 工具函數
-# ==========================================
 def get_stock_id(name_str: str) -> Optional[str]:
     s = unicodedata.normalize("NFKC", str(name_str).strip()).replace(" ", "")
     m = re.match(r"^(\d+[A-Za-z])(?![A-Za-z])", s)
@@ -261,7 +243,6 @@ def calculate_macd(closes: list, fast: int, slow: int, signal: int):
     exp2 = ema(closes, slow)
     macd_line = [a - b if a and b else None for a, b in zip(exp1, exp2)]
     sig_line = ema([v for v in macd_line if v is not None], signal)
-    # pad sig_line back
     sig_full = [None] * len(macd_line)
     j = 0
     for i, v in enumerate(macd_line):
@@ -271,9 +252,6 @@ def calculate_macd(closes: list, fast: int, slow: int, signal: int):
     hist = [a - b if a is not None and b is not None else None for a, b in zip(macd_line, sig_full)]
     return macd_line, sig_full, hist
 
-# ==========================================
-# 認證 endpoints
-# ==========================================
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -315,36 +293,23 @@ def login(req: LoginRequest):
     except Exception as e:
         raise HTTPException(500, str(e))
 
-# ==========================================
-# 券商資料庫 endpoints
-# ==========================================
 @app.get("/api/brokers/tree")
 def get_broker_tree():
-    """回傳完整券商樹（供前端下拉選單用）"""
     result = {}
     for hq_name, hq_data in UI_TREE.items():
-        result[hq_name] = {
-            "bid": hq_data["bid"],
-            "branches": list(hq_data["branches"].keys())
-        }
+        result[hq_name] = {"bid": hq_data["bid"], "branches": list(hq_data["branches"].keys())}
     return result
 
 @app.get("/api/brokers/map")
 def get_broker_map():
-    """回傳分點名稱→ID對照（供前端查詢用）"""
     return BROKER_MAP
 
 @app.get("/api/brokers/geo")
 def get_geo_map():
-    """回傳地緣關鍵字列表"""
     return {loc: list(branches.keys()) for loc, branches in GEO_MAP.items()}
 
-# ==========================================
-# 爬蟲 endpoints（TAB1 / TAB2 / TAB3 核心）
-# ==========================================
 @app.get("/api/broker/stocks")
 def broker_stocks(hq_id: str, br_id: str, start: str, end: str, unit: str = "shares"):
-    """TAB1/TAB3：特定分點買賣的所有股票"""
     c_param = "B" if unit == "amount" else "E"
     col_buy = "買進金額" if unit == "amount" else "買進張數"
     col_sell = "賣出金額" if unit == "amount" else "賣出張數"
@@ -380,7 +345,6 @@ def broker_stocks(hq_id: str, br_id: str, start: str, end: str, unit: str = "sha
         df_all["買%"] = (df_all[col_buy] / df_all["總額"] * 100).round(1)
         df_all["賣%"] = (df_all[col_sell] / df_all["總額"] * 100).round(1)
         df_all["股票代號"] = df_all["股票名稱"].apply(get_stock_id)
-        # 把名稱中的代號前綴去掉，只留中文名稱
         def strip_id(name, sid):
             if sid and name.startswith(sid):
                 return name[len(sid):].strip()
@@ -393,7 +357,6 @@ def broker_stocks(hq_id: str, br_id: str, start: str, end: str, unit: str = "sha
 
 @app.get("/api/stock/brokers")
 def stock_brokers(sid: str, start: str, end: str):
-    """TAB2：特定股票的所有買賣券商"""
     url = f"https://fubon-ebrokerdj.fbs.com.tw/z/zc/zco/zco.djhtm?a={sid}&e={start}&f={end}"
     try:
         res = requests.get(url, headers=HEADERS, verify=False, timeout=25)
@@ -414,7 +377,6 @@ def stock_brokers(sid: str, start: str, end: str):
         df_all = df_all[df_all["合計"] > 0].copy()
         df_all["買進%"] = (df_all["買"]/df_all["合計"]*100).round(1)
         df_all["賣出%"] = (df_all["賣"]/df_all["合計"]*100).round(1)
-        # 清除 NaN/Inf 避免 JSON 序列化錯誤
         df_all = df_all.replace([float('inf'), float('-inf')], 0).fillna(0)
         return df_all.to_dict(orient="records")
     except Exception as e:
@@ -422,7 +384,6 @@ def stock_brokers(sid: str, start: str, end: str):
 
 @app.get("/api/stock/broker_history")
 def broker_history(sid: str, br_id: str, start: str = "2015-01-01"):
-    """TAB4：特定股票 × 分點的歷史買賣超"""
     today_str = datetime.date.today().strftime("%Y-%m-%d")
     url = f"https://fubon-ebrokerdj.fbs.com.tw/z/zc/zco/zco0/zco0.djhtm?A={sid}&BHID={br_id}&b={br_id}&C=3&D={start}&E={today_str}&ver=V3"
     try:
@@ -450,72 +411,45 @@ def broker_history(sid: str, br_id: str, start: str = "2015-01-01"):
 
 @app.get("/api/stock/kline")
 def stock_kline(sid: str, start: str = "2015-01-01", interval: str = "1d"):
-    """TAB4：K線資料 proxy"""
-    import math, time as time_mod
-    YAHOO_HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "application/json",
-    }
-
+    """TAB4：K線資料，使用 yfinance 模組確保資料即時"""
     is_60m = (interval == "60m")
 
-    if is_60m:
-        # 60m 只能最近60天，用 period1/period2
-        now = int(time_mod.time())
-        p1 = now - 60 * 86400
-        p2 = now + 86400
-        range_param = f"period1={p1}&period2={p2}"
-    else:
-        try:
-            start_dt = datetime.datetime.strptime(start, "%Y-%m-%d")
-            years = (datetime.datetime.now() - start_dt).days / 365
-            range_str = "20y" if years > 10 else "10y" if years > 5 else "5y" if years > 2 else "2y"
-        except Exception:
-            range_str = "10y"
-        range_param = f"range={range_str}"
-
-    # 特殊代號不加後綴
-    special = sid.startswith("^") or "=" in sid
-    # 台指期嘗試多個 ticker 格式
     if sid.upper() in ("TXF", "TXF=F", "台指期"):
-        suffixes_list = ["TXF=F", "TWF=F", "^TWII"]
-    elif special:
-        suffixes_list = [sid]
+        tickers_to_try = ["TXF=F", "TWF=F", "^TWII"]
+    elif sid.startswith("^") or "=" in sid:
+        tickers_to_try = [sid]
     else:
-        suffixes_list = [f"{sid}.TW", f"{sid}.TWO"]
+        tickers_to_try = [f"{sid}.TW", f"{sid}.TWO"]
 
-    for ticker in suffixes_list:
+    period = "60d" if is_60m else "max"
+    yf_interval = "1h" if is_60m else "1d"
+
+    for ticker in tickers_to_try:
         try:
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?{range_param}&interval={interval}&includePrePost=false"
-            r = requests.get(url, headers=YAHOO_HEADERS, timeout=20)
-            if not r.ok:
-                continue
-            j = r.json()
-            result = j.get("chart", {}).get("result", [])
-            if not result:
-                continue
-            result = result[0]
-            timestamps = result.get("timestamp", [])
-            quotes = result.get("indicators", {}).get("quote", [{}])[0]
-            meta = result.get("meta", {})
-            stock_name = meta.get("longName") or meta.get("shortName") or ticker
-            if not timestamps or not quotes:
-                continue
+            df = yf.download(ticker, period=period, interval=yf_interval, progress=False, auto_adjust=True)
+            if df.empty: continue
+            df = df.dropna(subset=["Close"])
+            stock_name = ticker
+            try:
+                info = yf.Ticker(ticker).info
+                stock_name = info.get("longName") or info.get("shortName") or ticker
+            except Exception:
+                pass
             data = []
-            for i, ts in enumerate(timestamps):
-                c = quotes.get("close", [])[i] if i < len(quotes.get("close", [])) else None
-                o = quotes.get("open", [])[i] if i < len(quotes.get("open", [])) else None
-                h = quotes.get("high", [])[i] if i < len(quotes.get("high", [])) else None
-                l = quotes.get("low", [])[i] if i < len(quotes.get("low", [])) else None
-                if c is None or (isinstance(c, float) and math.isnan(c)):
+            for idx, row in df.iterrows():
+                try:
+                    o = float(row["Open"])
+                    h = float(row["High"])
+                    l = float(row["Low"])
+                    c = float(row["Close"])
+                except Exception:
                     continue
                 if is_60m:
-                    # 60m 回傳 Unix timestamp（前端直接用）
+                    ts = int(idx.timestamp())
                     data.append({"Date": ts, "Open": o, "High": h, "Low": l, "Close": c})
                 else:
-                    dt_str = datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
-                    if dt_str < start:
-                        continue
+                    dt_str = idx.strftime("%Y-%m-%d")
+                    if dt_str < start: continue
                     data.append({"Date": dt_str, "Open": o, "High": h, "Low": l, "Close": c})
             if data:
                 return {"suffix": ticker, "data": data, "stock_name": stock_name, "interval": interval}
@@ -524,11 +458,8 @@ def stock_kline(sid: str, start: str = "2015-01-01", interval: str = "1d"):
 
     raise HTTPException(404, f"找不到 {sid} 的K線資料（interval={interval}）")
 
-# ==========================================
-# VIP 掃描結果
-# ==========================================
-_vip_cache: dict = {}  # {sheet: {"data": [...], "ts": timestamp}}
-_VIP_CACHE_TTL = 300  # 5分鐘
+_vip_cache: dict = {}
+_VIP_CACHE_TTL = 300
 
 @app.get("/api/vip/scan")
 def vip_scan(sheet: str = "ScanResult", user: dict = Depends(get_current_user)):
@@ -547,9 +478,6 @@ def vip_scan(sheet: str = "ScanResult", user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(500, str(e))
 
-# ==========================================
-# 最愛清單 CRUD
-# ==========================================
 @app.get("/api/watchlist")
 def get_watchlist(user: dict = Depends(get_current_user)):
     return sheets_load("Watchlist", user["sub"])
@@ -563,9 +491,6 @@ def save_watchlist(req: WatchlistSaveRequest, user: dict = Depends(get_current_u
     if not ok: raise HTTPException(500, "儲存失敗")
     return {"ok": True}
 
-# ==========================================
-# 工作組 CRUD
-# ==========================================
 @app.get("/api/working_group")
 def get_working_group(user: dict = Depends(get_current_user)):
     return sheets_load("WorkingGroup", user["sub"])
@@ -576,19 +501,14 @@ def save_working_group(req: WatchlistSaveRequest, user: dict = Depends(get_curre
     if not ok: raise HTTPException(500, "儲存失敗")
     return {"ok": True}
 
-# ==========================================
-# 健康檢查（cron-job.org 防冷啟動用）
-# ==========================================
 @app.get("/health")
 def health():
     return {"status": "ok", "time": datetime.datetime.now().isoformat()}
 
 @app.on_event("startup")
 async def warmup_cache():
-    """啟動時預先暖機 VIP 快取，避免第一次請求太慢"""
-    import asyncio
     async def _warm():
-        await asyncio.sleep(3)  # 等 GSheets 連線初始化
+        await asyncio.sleep(3)
         try:
             now = datetime.datetime.now().timestamp()
             for sheet in ["ScanResult", "ScanResult_W", "ScanResult_S"]:
@@ -600,20 +520,14 @@ async def warmup_cache():
         except Exception as e:
             print(f"[warmup] failed: {e}")
     asyncio.create_task(_warm())
-# ==========================================
-# 管理員功能：一鍵重新載入券商清單
-# ==========================================
+
 @app.get("/api/admin/reload_brokers")
 def reload_brokers():
-    """手動觸發重新下載 Google Drive 券商資料，免重啟伺服器"""
     global _HQ_DATA, _RAW_BRANCH, UI_TREE, BROKER_MAP, GEO_MAP
     print("手動重新載入券商資料庫...")
-    
     _HQ_DATA = _load_hq()
     _RAW_BRANCH = _load_branches()
     UI_TREE, BROKER_MAP = _build_broker_db(_RAW_BRANCH, _HQ_DATA)
-    
-    # 重新整理地緣券商
     new_geo_map = {}
     for br_name, br_info in BROKER_MAP.items():
         if "-" in br_name:
@@ -622,40 +536,32 @@ def reload_brokers():
                 if loc not in new_geo_map: new_geo_map[loc] = {}
                 new_geo_map[loc][br_name] = br_info
     GEO_MAP = new_geo_map
-    
     msg = f"更新成功！最新分點數量：{len(BROKER_MAP)} 個"
     print(msg)
     return {"status": "ok", "message": msg, "total_branches": len(BROKER_MAP)}
+
 @app.get("/api/txf/kline")
 def txf_kline(start: str = "2013-01-01"):
-    import math, datetime
-    YAHOO_HEADERS = {"User-Agent": "Mozilla/5.0"}
-    for ticker in ["TXF=F", "TWF=F", "^TWII"]:  # 加 "^TWII"
+    """台指期K線，供前端計算MACD狀態用"""
+    for ticker in ["TXF=F", "TWF=F", "^TWII"]:
         try:
-            start_dt = datetime.datetime.strptime(start, "%Y-%m-%d")
-            years = (datetime.datetime.now() - start_dt).days / 365
-            range_str = "20y" if years > 10 else "10y" if years > 5 else "5y"
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={range_str}&interval=1d&includePrePost=false"
-            r = requests.get(url, headers=YAHOO_HEADERS, timeout=20)
-            if not r.ok: continue
-            j = r.json()
-            result = j.get("chart", {}).get("result", [])
-            if not result: continue
-            result = result[0]
-            timestamps = result.get("timestamp", [])
-            quotes = result.get("indicators", {}).get("quote", [{}])[0]
+            df = yf.download(ticker, period="max", interval="1d", progress=False, auto_adjust=True)
+            if df.empty: continue
+            df = df.dropna(subset=["Close"])
             data = []
-            for i, ts in enumerate(timestamps):
-                c = quotes.get("close", [])[i] if i < len(quotes.get("close", [])) else None
-                if c is None or (isinstance(c, float) and math.isnan(c)): continue
-                dt_str = datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
+            for idx, row in df.iterrows():
+                dt_str = idx.strftime("%Y-%m-%d")
                 if dt_str < start: continue
-                data.append({"Date": dt_str, "Close": c})
+                try:
+                    data.append({"Date": dt_str, "Close": float(row["Close"])})
+                except Exception:
+                    continue
             if data:
                 return {"ticker": ticker, "data": data}
         except Exception:
             continue
     return {"ticker": None, "data": []}
+
 @app.get("/")
 def root():
     return {"app": "stock-radar API", "version": "2.0"}
