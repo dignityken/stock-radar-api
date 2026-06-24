@@ -548,7 +548,12 @@ function renderChipTable(rows){
     const row=tr(td({text:r.sid}),td({text:r.name}),td({text:r.market}),td({text:r.net_buy.toLocaleString()}),td({text:r.rate.toFixed(2)}));
     row.style.cursor='pointer';
     row.title='點擊載入 K線';
-    row.onclick=()=>{switchToT4(r.sid,'');const o=$('vip-overlay');if(o){o.classList.remove('open');o.style.display=''}};
+    row.onclick=()=>{
+      if(r.name)lastStockName[r.sid]=r.name;           // 帶中文名，避免圖表用 yfinance 英文名
+      switchToT4(r.sid,'');                             // 市場排行無特定分點，分點留空
+      $('t4-chip-result').innerHTML=`🔒 <b>${r.sid} ${r.name}</b> 籌碼鎖定率 <b style="color:var(--accent)">${r.rate.toFixed(2)}%</b> <span style="color:var(--text2)">＝ 主力買超 ${r.net_buy.toLocaleString()} 張 ÷ 流通 ${r.denom.toLocaleString()} 張（發行 ${r.issued.toLocaleString()}、董監 ${r.dir.toLocaleString()}）｜當日排行值</span>`;
+      const o=$('vip-overlay');if(o){o.classList.remove('open');o.style.display=''}
+    };
     tbody.appendChild(row);
   });
   tbl.appendChild(tbody);
