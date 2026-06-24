@@ -533,6 +533,7 @@ async function loadChipLock(){
   }
   applyChipFilter();
 }
+let chipSort={col:'rate',dir:-1};
 function applyChipFilter(){
   const min=parseFloat($('vip-chip-min').value)||0;
   renderChipTable(chipData.filter(r=>r.rate>=min));
@@ -540,8 +541,20 @@ function applyChipFilter(){
 function renderChipTable(rows){
   const wrap=$('vip-table-wrap');
   if(!rows.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>';return}
-  const tbl=el('table',{class:'vip-table'}),thead=el('thead');
-  thead.appendChild(tr(th('代號'),th('名稱'),th('市'),th('買超(張)'),th('鎖定率%')));
+  const cols=[['代號','sid','s'],['名稱','name','s'],['市','market','s'],['買超(張)','net_buy','n'],['鎖定率%','rate','n']];
+  rows=rows.slice().sort((a,b)=>{
+    const c=chipSort.col,va=a[c],vb=b[c];
+    const cmp=(typeof va==='number')?va-vb:String(va).localeCompare(String(vb));
+    return cmp*chipSort.dir;
+  });
+  const tbl=el('table',{class:'vip-table'}),thead=el('thead'),hr=el('tr');
+  cols.forEach(([label,key])=>{
+    const arrow=chipSort.col===key?(chipSort.dir<0?' ▼':' ▲'):'';
+    const h=el('th',{text:label+arrow,style:'cursor:pointer;user-select:none'});
+    h.onclick=()=>{if(chipSort.col===key)chipSort.dir*=-1;else chipSort={col:key,dir:(key==='sid'||key==='name'||key==='market')?1:-1};applyChipFilter()};
+    hr.appendChild(h);
+  });
+  thead.appendChild(hr);
   tbl.appendChild(thead);
   const tbody=el('tbody');
   rows.forEach(r=>{

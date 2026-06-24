@@ -580,16 +580,26 @@ def _build_chip_ref() -> dict:
                         "name": str(row.get("CompanyAbbreviation", "")).strip()}
     except Exception as e:
         print(f"[chip_ref] 上櫃基本資料 失敗: {e}")
-    # 董監持股（上市+上櫃）：各內部人「目前持股」加總
+    # 董監持股（上市+上櫃）：同一持股人常因多席次/多職稱重複列（法人董事尤甚，
+    # 例如陽明法人佔多席→同筆持股列多次）。以「姓名」去重，同一人取最大持股只算一次，
+    # 否則會嚴重灌水（2609 naive 加總後董監>發行→分母負數被丟掉）。
+    # ponytail: 以姓名去重；極少數同公司同名不同人會略少算，可接受。
+    holders: dict = {}   # sid -> {姓名: 持股(股)}
     for url in ["https://openapi.twse.com.tw/v1/opendata/t187ap11_L",
                 "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap11_O"]:
         try:
             for row in _fetch_json(url):
                 sid = str(row.get("公司代號", "")).strip()
                 if sid in ref:
-                    ref[sid]["dir_z"] += _num(row.get("目前持股")) / 1000
+                    nm = str(row.get("姓名", "")).strip()
+                    h = _num(row.get("目前持股"))
+                    cur = holders.setdefault(sid, {})
+                    if h > cur.get(nm, 0.0):
+                        cur[nm] = h
         except Exception as e:
             print(f"[chip_ref] 董監持股 {url} 失敗: {e}")
+    for sid, hd in holders.items():
+        ref[sid]["dir_z"] = sum(hd.values()) / 1000
     print(f"[chip_ref] 建表完成：{len(ref)} 檔")
     return ref
 
