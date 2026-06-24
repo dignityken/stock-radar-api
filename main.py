@@ -686,6 +686,61 @@ def stock_chip_lock(sid: str, start: str, end: str):
     r["start"], r["end"] = start, end
     return r
 
+def _parse_djbcd(sid: str):
+    """富邦主力進出比較圖資料：CZCO.DJBCD?A=sid。
+    單行，空白分三段（日期MMDD / 股價 / 主力買賣超），段內逗號分隔，約45個交易日。
+    回傳 [(YYYY-MM-DD, 主力買賣超張), ...] 依時間排序。"""
+    url = f"https://fubon-ebrokerdj.fbs.com.tw/z/zc/zco/CZCO.DJBCD?A={sid}"
+    res = requests.get(url, headers={**HEADERS, "Referer": f"https://fubon-ebrokerdj.fbs.com.tw/z/zc/zco/zco.djhtm?a={sid}"},
+                       verify=False, timeout=20)
+    toks = [x for x in re.split(r"[,\s]+", res.text.strip()) if x]
+    n = len(toks) // 3
+    if n == 0:
+        return []
+    mmdd, mf = toks[:n], toks[2 * n:3 * n]
+    # MMDD 無年份：以今天為錨往回推，月份變大代表跨年（前一年）
+    today = datetime.date.today()
+    yrs = [today.year] * n
+    y, prev_m = today.year, None
+    for i in range(n - 1, -1, -1):
+        try:
+            m = int(mmdd[i][:2])
+        except Exception:
+            continue
+        if prev_m is not None and m > prev_m:
+            y -= 1
+        yrs[i] = y
+        prev_m = m
+    out = []
+    for i in range(n):
+        try:
+            d = f"{yrs[i]:04d}-{mmdd[i][:2]}-{mmdd[i][2:4]}"
+            out.append((d, _num(mf[i])))
+        except Exception:
+            continue
+    return out
+
+@app.get("/api/stock/chip_lock_series")
+def stock_chip_lock_series(sid: str):
+    """逐日籌碼鎖定率序列（約45交易日）：rate = 區間起累積主力買賣超 / 流通 * 100%。"""
+    sid = sid.strip().upper()
+    ref = get_chip_ref()
+    info = ref.get(sid)
+    if not info:
+        raise HTTPException(404, f"查無 {sid} 的發行/董監資料（ETF、興櫃或新上市可能無）")
+    denom = info["issued_z"] - info["dir_z"]
+    if denom <= 0:
+        raise HTTPException(422, f"{sid} 分母不足（發行-董監≤0）")
+    series = _parse_djbcd(sid)
+    if not series:
+        raise HTTPException(502, "主力進出資料抓取失敗")
+    cum, data = 0.0, []
+    for d, mf in series:
+        cum += mf
+        data.append({"date": d, "mf": int(round(mf)), "cum": int(round(cum)),
+                     "rate": round(cum / denom * 100, 3)})
+    return {"sid": sid, "name": info["name"], "denom": int(round(denom)), "data": data}
+
 @app.get("/api/watchlist")
 def get_watchlist(user: dict = Depends(get_current_user)):
     return sheets_load("Watchlist", user["sub"])
