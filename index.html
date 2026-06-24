@@ -206,7 +206,14 @@ tr:hover td{background:rgba(255,255,255,.03)}
               <div class="vip-mode-bar">
                 <button class="vip-mode-btn active" id="m-vip-mode-normal" onclick="setMobileVipMode('normal')">📋 篩選</button>
                 <button class="vip-mode-btn" id="m-vip-mode-compare" onclick="setMobileVipMode('compare')">🔍 比對</button>
+                <button class="vip-mode-btn" id="m-vip-mode-chip" onclick="setMobileVipMode('chip')">🔒 鎖定率</button>
               </div>
+              <div id="m-vip-chip-wrap" style="display:none">
+                <div><label>市場</label><select id="m-vip-chip-market"><option value="all">上市+上櫃</option><option value="0">上市</option><option value="1">上櫃</option></select></div>
+                <div><label>最低鎖定率%</label><input type="number" id="m-vip-chip-min" value="0" min="0" step="0.5" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem"></div>
+                <div style="font-size:.72rem;color:var(--text2);margin-top:2px">候選＝當日主力買超排行（免上傳）</div>
+              </div>
+              <div id="m-vip-xq-fields">
               <div><label>K線週期</label><select id="m-vip-period"><option value="ScanResult">日線</option><option value="ScanResult_W">週線</option><option value="ScanResult_S">特殊(大3股2)</option></select></div>
               <div id="m-vip-normal-dates">
                 <div><label>起始日</label><input type="date" id="m-vip-start"></div>
@@ -223,6 +230,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
               <div><label>最低張數</label><input type="number" id="m-vip-vol" value="20" min="0" step="10" style="width:100%;padding:6px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem"></div>
               <div><label>分點過濾</label><select id="m-vip-broker-sel"><option>全部分點</option></select></div>
               <div><label>排序依據</label><select id="m-vip-sort"><option value="股票名稱">股票名稱</option><option value="_match">符合度</option><option value="張數">張數</option><option value="金額(萬)">金額(萬)</option><option value="佔比%">佔比%</option><option value="最新訊號日">最新訊號日</option></select></div>
+              </div><!-- /m-vip-xq-fields -->
               <button class="vip-apply-btn" id="m-vip-apply-btn">🔍 套用篩選</button>
             </div>
             <div id="m-vip-caption" style="font-size:.75rem;color:var(--text2);margin:4px 0"></div>
@@ -732,6 +740,9 @@ function setMobileVipMode(mode){
   mobileVipMode=mode;
   $('m-vip-mode-normal').classList.toggle('active',mode==='normal');
   $('m-vip-mode-compare').classList.toggle('active',mode==='compare');
+  $('m-vip-mode-chip').classList.toggle('active',mode==='chip');
+  $('m-vip-xq-fields').style.display=mode==='chip'?'none':'';
+  $('m-vip-chip-wrap').style.display=mode==='chip'?'':'none';
   $('m-vip-normal-dates').style.display=mode==='normal'?'':'none';
   $('m-vip-compare-dates').style.display=mode==='compare'?'':'none';
 }
@@ -740,8 +751,45 @@ function initMobileVipPanel(){
   $('m-vip-start').value=daysAgo(60);$('m-vip-end').value=today();
   $('m-vip-a-start').value=daysAgo(10);$('m-vip-b-start').value=daysAgo(5);$('m-vip-end-cmp').value=today();
   $('m-vip-period').onchange=()=>{vipScanData=[];$('m-vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem">週期已切換，請按「套用篩選」</div>'};
-  $('m-vip-apply-btn').onclick=()=>{if(mobileVipMode==='compare')mobileRunCompare();else mobileApplyVipFilter()};
+  $('m-vip-chip-market').onchange=()=>{chipData=[]};
+  $('m-vip-apply-btn').onclick=()=>{if(mobileVipMode==='compare')mobileRunCompare();else if(mobileVipMode==='chip')mobileLoadChipLock();else mobileApplyVipFilter()};
   $('m-vip-table-wrap').innerHTML='<div style="color:var(--text2);font-size:.75rem;padding:6px 0">請設定篩選條件後按「🔍 套用篩選」</div>';
+}
+
+async function mobileLoadChipLock(){
+  const market=$('m-vip-chip-market').value;
+  if(!chipData.length||chipData._market!==market){
+    $('m-vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入排行中...</div>';
+    try{const raw=await apiFetch(`/api/vip/chip_lock?market=${market}`);chipData=raw;chipData._market=market}
+    catch(e){$('m-vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`;return}
+  }
+  const min=parseFloat($('m-vip-chip-min').value)||0;
+  mobileRenderChipTable(chipData.filter(r=>r.rate>=min));
+}
+function mobileRenderChipTable(rows){
+  const wrap=$('m-vip-table-wrap');
+  if(!rows.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>';return}
+  const cols=[['代號','sid','s'],['名稱','name','s'],['市','market','s'],['買超','net_buy','n'],['鎖定率%','rate','n']];
+  rows=rows.slice().sort((a,b)=>{const c=chipSort.col,va=a[c],vb=b[c];const cmp=(typeof va==='number')?va-vb:String(va).localeCompare(String(vb));return cmp*chipSort.dir;});
+  const tbl=el('table',{class:'vip-table'}),thead=el('thead'),hr=el('tr');
+  cols.forEach(([label,key])=>{
+    const arrow=chipSort.col===key?(chipSort.dir<0?' ▼':' ▲'):'';
+    const h=el('th',{text:label+arrow,style:'cursor:pointer;user-select:none'});
+    h.onclick=()=>{if(chipSort.col===key)chipSort.dir*=-1;else chipSort={col:key,dir:(key==='sid'||key==='name'||key==='market')?1:-1};mobileLoadChipLock()};
+    hr.appendChild(h);
+  });
+  thead.appendChild(hr);tbl.appendChild(thead);
+  const tbody=el('tbody');
+  rows.forEach(r=>{
+    const row=tr(td({text:r.sid}),td({text:r.name}),td({text:r.market}),td({text:r.net_buy.toLocaleString()}),td({text:r.rate.toFixed(2)}));
+    row.style.cursor='pointer';
+    row.onclick=()=>{if(r.name)lastStockName[r.sid]=r.name;switchToT4(r.sid,'')};
+    tbody.appendChild(row);
+  });
+  tbl.appendChild(tbody);
+  wrap.innerHTML='';
+  wrap.appendChild(el('div',{style:'font-size:.72rem;color:var(--text2);margin-bottom:4px',text:`共 ${rows.length} 檔（點列載入K線）`}));
+  wrap.appendChild(tbl);
 }
 
 async function mobileApplyVipFilter(){
