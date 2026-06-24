@@ -150,7 +150,17 @@ tr:hover td{background:rgba(255,255,255,.03)}
           <div class="vip-mode-bar">
             <button class="vip-mode-btn active" id="vip-mode-normal" onclick="setVipMode('normal')">📋 篩選</button>
             <button class="vip-mode-btn" id="vip-mode-compare" onclick="setVipMode('compare')">🔍 比對</button>
+            <button class="vip-mode-btn" id="vip-mode-chip" onclick="setVipMode('chip')">🔒 鎖定率</button>
           </div>
+
+          <!-- 籌碼鎖定率模式 -->
+          <div id="vip-chip-wrap" style="display:none">
+            <div><label>市場</label><select id="vip-chip-market"><option value="all">上市+上櫃</option><option value="0">上市</option><option value="1">上櫃</option></select></div>
+            <div><label>最低鎖定率%</label><input type="number" id="vip-chip-min" value="0" min="0" step="0.5" style="width:100%;padding:5px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.8rem"></div>
+            <div style="font-size:.7rem;color:var(--text2);margin-top:2px">候選＝當日主力買超排行（免上傳）</div>
+          </div>
+
+          <div id="vip-xq-fields">
 
           <div><label>K線週期</label><select id="vip-period"><option value="ScanResult">日線</option><option value="ScanResult_W">週線</option><option value="ScanResult_S">特殊(大3股2)</option></select></div>
 
@@ -179,6 +189,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
           <div><label>最低張數</label><input type="number" id="vip-vol" value="20" min="0" step="10" style="width:100%;padding:5px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.8rem"></div>
           <div id="vip-broker-wrap"><label>分點過濾</label><select id="vip-broker-sel"><option>全部分點</option></select></div>
           <div id="vip-sort-wrap"><label>排序依據</label><select id="vip-sort"><option value="股票名稱">股票名稱</option><option value="_match">符合度</option><option value="張數">張數</option><option value="金額(萬)">金額(萬)</option><option value="佔比%">佔比%</option><option value="最新訊號日">最新訊號日</option></select></div>
+          </div><!-- /vip-xq-fields -->
           <button class="vip-apply-btn" id="vip-apply-btn">🔍 套用篩選</button>
         </div>
         <div id="vip-caption" style="font-size:.75rem;color:var(--text2);margin:4px 0 0"></div>
@@ -291,8 +302,14 @@ tr:hover td{background:rgba(255,255,255,.03)}
             </select>
             <button class="btn-search" id="t4-draw-btn" style="padding:6px 14px">🎨 繪圖</button>
             <button class="btn-secondary" id="t4-fav-btn" style="padding:6px 10px">❤️</button>
+            <span style="display:inline-flex;gap:4px;align-items:center">
+              <input type="date" id="t4-chip-start" style="padding:5px 4px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.74rem">
+              <input type="date" id="t4-chip-end" style="padding:5px 4px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.74rem">
+              <button class="btn-secondary" id="t4-chip-btn" style="padding:6px 10px">🔒 鎖定率</button>
+            </span>
           </div>
         </div>
+        <div id="t4-chip-result" style="font-size:.8rem;margin:2px 0 6px"></div>
         <div id="t4-status"></div>
         <details id="wl-details" style="margin-bottom:6px"><summary class="list-tab-summary">⭐ 最愛 <span id="wl-count">(0)</span></summary><div id="wl-panel" style="padding:4px 0"><div id="wl-table-wrap"></div></div></details>
         <details id="wg-details" style="margin-bottom:6px"><summary class="list-tab-summary">🗂️ 工作組 <span id="wg-count">(0)</span></summary><div id="wg-panel" style="padding:4px 0"><div id="wg-table-wrap"></div><div style="display:flex;gap:8px;margin-top:8px"><button class="btn-secondary" id="wg-clear-btn" style="flex:1">🗑️ 清空</button><button class="btn-secondary" id="wg-fav-btn" style="flex:1">❤️ 勾選存入最愛</button></div></div></details>
@@ -336,6 +353,7 @@ async function initApp(){
   const mc=$('main-content'),ld=document.createElement('div');ld.id='broker-loading';ld.className='status-msg status-info';ld.style.margin='0 0 10px';ld.innerHTML='<div class="loading"><div class="spinner"></div>正在連線伺服器，首次啟動約需 30~60 秒...</div>';mc.insertBefore(ld,mc.firstChild);
   try{const [tree,map,geo]=await Promise.all([apiFetch('/api/brokers/tree'),apiFetch('/api/brokers/map'),apiFetch('/api/brokers/geo')]);brokerTree=tree;brokerMap=map;geoMap=geo;buildT1Selects();buildT3Selects();buildT4BrSelect();ld.remove()}catch(e){ld.className='status-msg status-error';ld.innerHTML=`⚠️ 伺服器連線失敗。(${e.message})`}
   ['t1','t2','t3'].forEach(t=>{$(t+'-sd').value=daysAgo(7);$(t+'-ed').value=today()});
+  $('t4-chip-start').value=daysAgo(5);$('t4-chip-end').value=today();
   await loadWatchlist();await loadWorkingGroup();renderWatchlist();renderWorkingGroup();
   if(userRole==='vip'){if(window.innerWidth>768)$('vip-panel').style.display='block';initVipPanel()}
   function adjPad(){if(window.innerWidth<=768){const sb=document.querySelector('.sidebar'),mc=document.querySelector('.main-content');if(sb&&mc)mc.style.paddingTop=(sb.offsetHeight+8)+'px';if(userRole==='vip')$('mobile-vip-panel').style.display='block'}else{const mc=document.querySelector('.main-content');if(mc)mc.style.paddingTop='';$('mobile-vip-panel').style.display='none'}}
@@ -365,6 +383,15 @@ $('t3-search-btn').onclick=async()=>{const brName=$('t3-br').value,brInfo=broker
 // ── TAB4 ──
 function switchToT4(sid,brName){$('t4-sid').value=sid;$('t4-br').value=brName||'';document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.querySelector('.nav-btn[data-tab=t4]').classList.add('active');['t1','t2','t3','t4'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');currentTab='t4';drawChart()}
 $('t4-draw-btn').onclick=drawChart;
+$('t4-chip-btn').onclick=async()=>{
+  const sid=$('t4-sid').value.trim().toUpperCase(),s=$('t4-chip-start').value,e=$('t4-chip-end').value;
+  if(!sid){$('t4-chip-result').innerHTML='<span style="color:var(--red)">請先輸入股票代號</span>';return}
+  $('t4-chip-result').innerHTML='<span style="color:var(--text2)">🔒 計算中...</span>';
+  try{
+    const r=await apiFetch(`/api/stock/chip_lock?sid=${sid}&start=${s}&end=${e}`);
+    $('t4-chip-result').innerHTML=`🔒 <b>${r.sid} ${r.name}</b> 籌碼鎖定率 <b style="color:var(--accent)">${r.rate.toFixed(2)}%</b> <span style="color:var(--text2)">＝ 主力買超 ${r.net_buy.toLocaleString()} 張 ÷ 流通 ${r.denom.toLocaleString()} 張（發行 ${r.issued.toLocaleString()}、董監 ${r.dir.toLocaleString()}）｜${r.start}~${r.end}</span>`;
+  }catch(err){$('t4-chip-result').innerHTML=`<span style="color:var(--red)">${err.message}</span>`}
+};
 
 async function fetchTxfMacdState(startY){
   try{
@@ -470,6 +497,9 @@ function setVipMode(mode){
   vipMode=mode;
   $('vip-mode-normal').classList.toggle('active',mode==='normal');
   $('vip-mode-compare').classList.toggle('active',mode==='compare');
+  $('vip-mode-chip').classList.toggle('active',mode==='chip');
+  $('vip-xq-fields').style.display=mode==='chip'?'none':'';
+  $('vip-chip-wrap').style.display=mode==='chip'?'':'none';
   $('vip-normal-dates').style.display=mode==='normal'?'':'none';
   $('vip-compare-dates').style.display=mode==='compare'?'':'none';
   $('vip-broker-wrap').style.display=mode==='normal'?'':'none';
@@ -483,12 +513,48 @@ function initVipPanel(){
   $('vip-b-start').value=daysAgo(5);
   $('vip-end-cmp').value=today();
   $('vip-period').onchange=()=>{vipScanData=[];$('vip-caption').textContent=''};
+  $('vip-chip-market').onchange=()=>{chipData=[]};
   $('vip-apply-btn').onclick=()=>{
     const btn=$('vip-apply-btn');btn.disabled=true;btn.textContent='⏳ 篩選中...';
     if(window.innerWidth>768){$('vip-overlay').style.display='flex';$('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>篩選中...</div>'}
     if(vipMode==='compare') runVipCompare().finally(()=>{btn.disabled=false;btn.textContent='🔍 套用篩選'});
+    else if(vipMode==='chip') loadChipLock().finally(()=>{btn.disabled=false;btn.textContent='🔍 套用篩選'});
     else loadAndFilterVip().finally(()=>{btn.disabled=false;btn.textContent='🔍 套用篩選'});
   };
+}
+
+let chipData=[];
+async function loadChipLock(){
+  const market=$('vip-chip-market').value;
+  if(!chipData.length||chipData._market!==market){
+    $('vip-table-wrap').innerHTML='<div class="loading"><div class="spinner"></div>載入排行中...</div>';
+    try{const raw=await apiFetch(`/api/vip/chip_lock?market=${market}`);chipData=raw;chipData._market=market}
+    catch(e){$('vip-table-wrap').innerHTML=`<div style="color:var(--red);font-size:.75rem">${e.message}</div>`;return}
+  }
+  applyChipFilter();
+}
+function applyChipFilter(){
+  const min=parseFloat($('vip-chip-min').value)||0;
+  renderChipTable(chipData.filter(r=>r.rate>=min));
+}
+function renderChipTable(rows){
+  const wrap=$('vip-table-wrap');
+  if(!rows.length){wrap.innerHTML='<div style="color:var(--text2);font-size:.75rem">無資料</div>';return}
+  const tbl=el('table',{class:'vip-table'}),thead=el('thead');
+  thead.appendChild(tr(th('代號'),th('名稱'),th('市'),th('買超(張)'),th('鎖定率%')));
+  tbl.appendChild(thead);
+  const tbody=el('tbody');
+  rows.forEach(r=>{
+    const row=tr(td({text:r.sid}),td({text:r.name}),td({text:r.market}),td({text:r.net_buy.toLocaleString()}),td({text:r.rate.toFixed(2)}));
+    row.style.cursor='pointer';
+    row.title='點擊載入 K線';
+    row.onclick=()=>{switchToT4(r.sid,'');const o=$('vip-overlay');if(o){o.classList.remove('open');o.style.display=''}};
+    tbody.appendChild(row);
+  });
+  tbl.appendChild(tbody);
+  wrap.innerHTML='';
+  wrap.appendChild(el('div',{class:'',style:'font-size:.72rem;color:var(--text2);margin-bottom:4px',text:`共 ${rows.length} 檔（點列載入K線）`}));
+  wrap.appendChild(tbl);
 }
 
 async function loadAndFilterVip(){

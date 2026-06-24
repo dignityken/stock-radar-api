@@ -534,6 +534,148 @@ def vip_scan(sheet: str = "ScanResult", user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(500, str(e))
 
+# ── 籌碼鎖定率 ──
+# 鎖定率 = 主力券商買超張數 / (發行張數 - 董監持股張數) * 100%
+# 分母（發行/董監）月更，做成快取表；分子每日從富邦排行/個股頁爬。
+_chip_ref: dict = {}            # sid -> {"issued_z":發行張數, "dir_z":董監張數, "name":簡稱}
+_chip_ref_ts = 0.0
+_CHIP_REF_TTL = 6 * 3600
+_chip_rank_cache: dict = {}     # market -> {"data":[...], "ts":...}
+_CHIP_RANK_TTL = 600
+
+def _num(x) -> float:
+    try:
+        return float(str(x).replace(",", "").strip())
+    except Exception:
+        return 0.0
+
+def _fetch_json(url: str):
+    r = requests.get(url, headers=HEADERS, verify=False, timeout=30)
+    r.encoding = "utf-8"
+    return r.json()
+
+def _build_chip_ref() -> dict:
+    ref: dict = {}
+    # 上市基本資料：已發行普通股數（最後一欄），退而求其次用 實收資本額/面額
+    try:
+        for row in _fetch_json("https://openapi.twse.com.tw/v1/opendata/t187ap03_L"):
+            sid = str(row.get("公司代號", "")).strip()
+            if not sid:
+                continue
+            ik = next((k for k in row if "已發行" in k), None)
+            shares = _num(row.get(ik)) if ik else 0.0
+            if shares <= 0:
+                par = _num(re.sub(r"[^\d.]", "", str(row.get("普通股每股面額", "10")))) or 10.0
+                shares = _num(row.get("實收資本額")) / par if par else 0.0
+            ref[sid] = {"issued_z": shares / 1000, "dir_z": 0.0, "name": str(row.get("公司簡稱", "")).strip()}
+    except Exception as e:
+        print(f"[chip_ref] 上市基本資料 失敗: {e}")
+    # 上櫃基本資料：IssueShares 為已發行股數
+    try:
+        for row in _fetch_json("https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"):
+            sid = str(row.get("SecuritiesCompanyCode", "")).strip()
+            if not sid:
+                continue
+            ref[sid] = {"issued_z": _num(row.get("IssueShares")) / 1000, "dir_z": 0.0,
+                        "name": str(row.get("CompanyAbbreviation", "")).strip()}
+    except Exception as e:
+        print(f"[chip_ref] 上櫃基本資料 失敗: {e}")
+    # 董監持股（上市+上櫃）：各內部人「目前持股」加總
+    for url in ["https://openapi.twse.com.tw/v1/opendata/t187ap11_L",
+                "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap11_O"]:
+        try:
+            for row in _fetch_json(url):
+                sid = str(row.get("公司代號", "")).strip()
+                if sid in ref:
+                    ref[sid]["dir_z"] += _num(row.get("目前持股")) / 1000
+        except Exception as e:
+            print(f"[chip_ref] 董監持股 {url} 失敗: {e}")
+    print(f"[chip_ref] 建表完成：{len(ref)} 檔")
+    return ref
+
+def get_chip_ref() -> dict:
+    global _chip_ref, _chip_ref_ts
+    now = time.time()
+    if not _chip_ref or (now - _chip_ref_ts) > _CHIP_REF_TTL:
+        built = _build_chip_ref()
+        if built:
+            _chip_ref, _chip_ref_ts = built, now
+    return _chip_ref
+
+def _chip_rate(sid: str, net_z: float, ref: dict):
+    """回傳該檔鎖定率 dict，分母不足或查無基本資料則回 None。"""
+    info = ref.get(sid)
+    if not info:
+        return None
+    denom = info["issued_z"] - info["dir_z"]
+    if denom <= 0:
+        return None
+    return {"sid": sid, "name": info["name"], "net_buy": int(round(net_z)),
+            "issued": int(round(info["issued_z"])), "dir": int(round(info["dir_z"])),
+            "denom": int(round(denom)), "rate": round(net_z / denom * 100, 2)}
+
+def _parse_ranking(market: str) -> dict:
+    """富邦主力買超排行 → {sid: 買超張數}。market 0=上市 1=上櫃。"""
+    url = f"https://fubon-ebrokerdj.fbs.com.tw/z/zg/zg_F_{market}_1.djhtm"
+    res = requests.get(url, headers=HEADERS, verify=False, timeout=25)
+    res.encoding = "big5"
+    parts = re.split(r"Link2Stk\('([^']+)'\)", res.text)
+    out = {}
+    for i in range(1, len(parts) - 1, 2):
+        sid = parts[i].strip()
+        nums = re.findall(r't3n1">&nbsp;([\d,.]+)', parts[i + 1])  # [成交價, 買進, 賣出, 買超]
+        if len(nums) >= 4:
+            out[sid] = _num(nums[-1])
+    return out
+
+@app.get("/api/vip/chip_lock")
+def vip_chip_lock(market: str = "all", user: dict = Depends(get_current_user)):
+    if user.get("role") != "vip":
+        raise HTTPException(403, "VIP 限定")
+    cached = _chip_rank_cache.get(market)
+    if cached and (time.time() - cached["ts"]) < _CHIP_RANK_TTL:
+        return cached["data"]
+    ref = get_chip_ref()
+    if not ref:
+        raise HTTPException(503, "發行/董監資料尚未就緒，請稍後再試")
+    markets = ["0", "1"] if market == "all" else [market]
+    rows = []
+    for mk in markets:
+        try:
+            for sid, net in _parse_ranking(mk).items():
+                r = _chip_rate(sid, net, ref)
+                if r:
+                    r["market"] = "上市" if mk == "0" else "上櫃"
+                    rows.append(r)
+        except Exception as e:
+            print(f"[chip_lock] 排行 market={mk} 失敗: {e}")
+    rows.sort(key=lambda x: -x["rate"])
+    _chip_rank_cache[market] = {"data": rows, "ts": time.time()}
+    return rows
+
+@app.get("/api/stock/chip_lock")
+def stock_chip_lock(sid: str, start: str, end: str):
+    sid = sid.strip().upper()
+    ref = get_chip_ref()
+    info = ref.get(sid)
+    if not info:
+        raise HTTPException(404, f"查無 {sid} 的發行/董監資料（ETF、興櫃或新上市可能無）")
+    url = f"https://fubon-ebrokerdj.fbs.com.tw/z/zc/zco/zco.djhtm?a={sid}&e={start}&f={end}"
+    try:
+        res = requests.get(url, headers=HEADERS, verify=False, timeout=25)
+        res.encoding = "big5"
+        def grab(label):
+            m = re.search(re.escape(label) + r"</td>\s*<td[^>]*>([\d,]+)", res.text)
+            return _num(m.group(1)) if m else 0.0
+        net = grab("合計買超張數") - grab("合計賣超張數")
+    except Exception as e:
+        raise HTTPException(500, str(e))
+    r = _chip_rate(sid, net, ref)
+    if not r:
+        raise HTTPException(422, f"{sid} 分母不足（發行-董監≤0）")
+    r["start"], r["end"] = start, end
+    return r
+
 @app.get("/api/watchlist")
 def get_watchlist(user: dict = Depends(get_current_user)):
     return sheets_load("Watchlist", user["sub"])
