@@ -4,7 +4,7 @@
 
 big400 = 分級>=12 (>400張)，big1000 = 分級15 (>1000張)。
 """
-import csv, io, json, os, sys, datetime
+import csv, io, json, os, sys
 import urllib.request, ssl
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -51,6 +51,8 @@ def parse(text):
 
 
 def merge(sid, point):
+    """寫入該週點；若該日期已存在且資料相同則不動（idempotent，避免無謂 commit）。
+    回傳 True 表示有寫入變更。"""
     os.makedirs(OUTDIR, exist_ok=True)
     fp = os.path.join(OUTDIR, f"{sid}.json")
     rec = {"sid": sid, "data": []}
@@ -60,11 +62,13 @@ def merge(sid, point):
         except Exception:
             pass
     by_date = {p["date"]: p for p in rec.get("data", [])}
+    if by_date.get(point["date"]) == point:
+        return False
     by_date[point["date"]] = point
     rec["sid"] = sid
     rec["data"] = sorted(by_date.values(), key=lambda p: p["date"])
-    rec["updated"] = datetime.datetime.utcnow().isoformat() + "Z"
     json.dump(rec, open(fp, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+    return True
 
 
 def main():
@@ -72,9 +76,8 @@ def main():
     if not snap:
         print("no data"); sys.exit(1)
     date = next(iter(snap.values()))["date"]
-    for sid, point in snap.items():
-        merge(sid, point)
-    print(f"snapshot {date}: {len(snap)} stocks updated")
+    changed = sum(1 for sid, point in snap.items() if merge(sid, point))
+    print(f"snapshot {date}: {len(snap)} stocks, {changed} changed")
 
 
 if __name__ == "__main__":

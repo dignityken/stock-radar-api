@@ -2,7 +2,7 @@ name: 每週快照集保大戶持股率
 
 on:
   schedule:
-    - cron: "0 1 * * 0"   # 每週日 01:00 UTC（台灣 09:00）；TDCC 集保資料週末更新
+    - cron: "0 1 * * *"   # 每天 01:00 UTC（台灣 09:00）；只有出現新一週才會 commit
   workflow_dispatch: {}    # 也可手動觸發
 
 permissions:
