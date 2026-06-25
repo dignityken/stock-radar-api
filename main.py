@@ -741,6 +741,60 @@ def stock_chip_lock_series(sid: str):
                      "rate": round(cum / denom * 100, 3)})
     return {"sid": sid, "name": info["name"], "denom": int(round(denom)), "data": data}
 
+# ── 集保股權分散（大戶持股率） ──
+# TDCC opendata id=1-5：當週、全市場、每檔 15 分級的人數/股數/占比%。
+# 分級→張數：12=400-600, 13=600-800, 14=800-1000, 15=>1000（1張=1000股）。
+# 大戶率 = 所選門檻分級以上的占比加總（前端可自訂門檻）。
+TDCC_TIER_LABEL = {1:"<1張",2:"1-5張",3:"5-10張",4:"10-15張",5:"15-20張",6:"20-30張",
+                   7:"30-40張",8:"40-50張",9:"50-100張",10:"100-200張",11:"200-400張",
+                   12:"400-600張",13:"600-800張",14:"800-1000張",15:">1000張"}
+_holders_cache = {"data": None, "date": None, "ts": 0.0}
+_HOLDERS_TTL = 12 * 3600
+
+def _load_holders():
+    import csv as _csv, io as _io
+    url = "https://opendata.tdcc.com.tw/getOD.ashx?id=1-5"
+    r = requests.get(url, headers=HEADERS, verify=False, timeout=60)
+    r.encoding = "utf-8-sig"
+    out, date = {}, None
+    rd = _csv.reader(_io.StringIO(r.text))
+    next(rd, None)
+    for row in rd:
+        if len(row) < 6:
+            continue
+        sid = row[1].strip()
+        try:
+            L = int(row[2].strip())
+        except Exception:
+            continue
+        if L < 1 or L > 15:   # 略過 16差異數 / 17合計
+            continue
+        out.setdefault(sid, []).append({"tier": L, "label": TDCC_TIER_LABEL[L],
+                                        "people": int(row[3] or 0), "shares": int(row[4] or 0),
+                                        "pct": float(row[5] or 0)})
+        date = date or row[0].strip()
+    return out, date
+
+def get_holders():
+    now = time.time()
+    if not _holders_cache["data"] or (now - _holders_cache["ts"]) > _HOLDERS_TTL:
+        data, date = _load_holders()
+        if data:
+            _holders_cache.update({"data": data, "date": date, "ts": now})
+    return _holders_cache["data"], _holders_cache["date"]
+
+@app.get("/api/stock/holders")
+def stock_holders(sid: str):
+    """當週集保股權分散：回該檔 15 分級。大戶率由前端依自訂門檻加總。"""
+    sid = sid.strip().upper()
+    data, date = get_holders()
+    if not data:
+        raise HTTPException(503, "集保資料尚未就緒，請稍後再試")
+    tiers = data.get(sid)
+    if not tiers:
+        raise HTTPException(404, f"查無 {sid} 集保資料")
+    return {"sid": sid, "date": date, "tiers": sorted(tiers, key=lambda x: x["tier"])}
+
 @app.get("/api/watchlist")
 def get_watchlist(user: dict = Depends(get_current_user)):
     return sheets_load("Watchlist", user["sub"])

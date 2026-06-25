@@ -141,6 +141,7 @@ tr:hover td{background:rgba(255,255,255,.03)}
         <button class="nav-btn" data-tab="t2">📊 股票代號</button>
         <button class="nav-btn" data-tab="t3">📍 地緣券商</button>
         <button class="nav-btn" data-tab="t4">📈 K線圖</button>
+        <button class="nav-btn" data-tab="t5">🧮 集保大戶</button>
       </div>
       <!-- VIP 掃描清單 sidebar -->
       <div id="vip-panel" style="display:none" class="sidebar-vip">
@@ -327,6 +328,21 @@ tr:hover td{background:rgba(255,255,255,.03)}
         <div id="chart-wrapper" style="display:none"><div id="chart-container"></div><div class="chart-legend" id="chart-legend">將滑鼠移至K線上查看數據</div></div>
       </div>
 
+      <div id="tab-t5" style="display:none">
+        <div class="chart-controls">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%">
+            <input type="text" id="t5-sid" placeholder="股票代號" value="1216" style="width:90px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
+            <label style="font-size:.8rem;color:var(--text2)">大戶門檻</label>
+            <select id="t5-tier" style="width:110px;padding:6px 4px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.82rem">
+              <option value="2">≥1張</option><option value="3">≥5張</option><option value="4">≥10張</option><option value="5">≥15張</option><option value="6">≥20張</option><option value="7">≥30張</option><option value="8">≥40張</option><option value="9">≥50張</option><option value="10">≥100張</option><option value="11">≥200張</option><option value="12" selected>≥400張</option><option value="13">≥600張</option><option value="14">≥800張</option><option value="15">≥1000張</option>
+            </select>
+            <button class="btn-search" id="t5-query-btn" style="padding:6px 14px">🔍 查詢</button>
+          </div>
+        </div>
+        <div id="t5-status"></div>
+        <div id="t5-result" style="margin-top:8px"></div>
+      </div>
+
     </div><!-- /main-content -->
   </div>
 </div>
@@ -392,7 +408,43 @@ $('t3-search-btn').onclick=async()=>{const brName=$('t3-br').value,brInfo=broker
 
 // ── TAB4 ──
 // ── TAB4 ──
-function switchToT4(sid,brName){$('t4-sid').value=sid;$('t4-br').value=brName||'';document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.querySelector('.nav-btn[data-tab=t4]').classList.add('active');['t1','t2','t3','t4'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');currentTab='t4';drawChart()}
+function switchToT4(sid,brName){$('t4-sid').value=sid;$('t4-br').value=brName||'';document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.querySelector('.nav-btn[data-tab=t4]').classList.add('active');['t1','t2','t3','t4','t5'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');currentTab='t4';drawChart()}
+
+// ── TAB5 集保大戶持股率（當週、自訂張數門檻）──
+let t5Tiers=null,t5Sid='',t5Date='';
+async function loadT5(){
+  const sid=$('t5-sid').value.trim().toUpperCase();
+  if(!sid)return;
+  $('t5-status').innerHTML='<div class="loading"><div class="spinner"></div>載入集保股權分散...</div>';$('t5-result').innerHTML='';
+  try{
+    const r=await apiFetch(`/api/stock/holders?sid=${sid}`);
+    t5Tiers=r.tiers;t5Sid=r.sid;t5Date=r.date;$('t5-status').innerHTML='';renderT5();
+  }catch(e){t5Tiers=null;$('t5-status').innerHTML=`<div style="color:var(--red);font-size:.85rem">${e.message}</div>`}
+}
+function renderT5(){
+  if(!t5Tiers){$('t5-result').innerHTML='';return}
+  const th=parseInt($('t5-tier').value),thLabel=$('t5-tier').selectedOptions[0].textContent;
+  let bP=0,bPpl=0,bSh=0,aP=0,aPpl=0,aSh=0;
+  t5Tiers.forEach(t=>{aP+=t.pct;aPpl+=t.people;aSh+=t.shares;if(t.tier>=th){bP+=t.pct;bPpl+=t.people;bSh+=t.shares}});
+  const sP=Math.max(0,aP-bP),sPpl=aPpl-bPpl,sSh=aSh-bSh;
+  const z=n=>Math.round(n/1000).toLocaleString(),dt=t5Date?`${t5Date.slice(0,4)}/${t5Date.slice(4,6)}/${t5Date.slice(6,8)}`:'';
+  const maxPct=Math.max(...t5Tiers.map(t=>t.pct),1);
+  const card=(title,color,pct,ppl,sh)=>`<div style="flex:1;min-width:150px;background:var(--bg3);border:1px solid var(--border);border-left:3px solid ${color};border-radius:6px;padding:10px"><div style="font-size:.8rem;color:var(--text2)">${title}</div><div style="font-size:1.4rem;font-weight:700;color:${color}">${pct.toFixed(2)}%</div><div style="font-size:.74rem;color:var(--text2);margin-top:2px">股東 ${ppl.toLocaleString()} 人｜${z(sh)} 張</div></div>`;
+  let rows='';
+  t5Tiers.forEach(t=>{const big=t.tier>=th;rows+=`<tr style="${big?'background:rgba(239,83,80,.08)':''}"><td style="padding:3px 6px">${t.label}</td><td style="padding:3px 6px;text-align:right">${t.people.toLocaleString()}</td><td style="padding:3px 6px;text-align:right">${z(t.shares)}</td><td style="padding:3px 6px;text-align:right;color:${big?'#ef5350':'var(--text2)'}">${t.pct.toFixed(2)}%</td><td style="padding:3px 6px;width:120px"><div style="height:10px;background:${big?'#ef5350':'#26a69a'};opacity:.7;width:${(t.pct/maxPct*100).toFixed(1)}%;border-radius:2px"></div></td></tr>`});
+  $('t5-result').innerHTML=`
+    <div style="font-size:.8rem;color:var(--text2);margin-bottom:6px">${t5Sid}　集保資料日期：${dt}　（門檻：${thLabel}）</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      ${card('大戶持股（'+thLabel+'）','#ef5350',bP,bPpl,bSh)}
+      ${card('散戶持股（其餘）','#26a69a',sP,sPpl,sSh)}
+      <div style="flex:1;min-width:150px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px"><div style="font-size:.8rem;color:var(--text2)">總股東人數</div><div style="font-size:1.4rem;font-weight:700">${aPpl.toLocaleString()}</div><div style="font-size:.74rem;color:var(--text2);margin-top:2px">集保總張數 ${z(aSh)} 張</div></div>
+    </div>
+    <table class="vip-table" style="width:100%;max-width:560px"><thead><tr><th style="text-align:left">張數級距</th><th style="text-align:right">人數</th><th style="text-align:right">張數</th><th style="text-align:right">占比</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+    <div style="font-size:.72rem;color:var(--text2);margin-top:6px">註：當週快照（TDCC 集保）。歷史週線將由每週累積後提供。</div>`;
+}
+$('t5-query-btn').onclick=loadT5;
+$('t5-sid').addEventListener('keydown',e=>{if(e.key==='Enter')loadT5()});
+$('t5-tier').onchange=renderT5;
 $('t4-draw-btn').onclick=drawChart;
 // 副圖高度切換（v3.8 overlay 軸無法拖曳縮放，改用刻度邊界即時調整下方三副圖比例）
 let indLayout='std';
