@@ -34,18 +34,19 @@ def parse(text):
             continue
         people = int(row[3] or 0); shares = int(row[4] or 0); pct = float(row[5] or 0)
         a = agg.setdefault(sid, {"date": row[0].strip(), "shares": 0, "people": 0,
-                                 "b400_pct": 0.0, "b400_people": 0, "b1000_pct": 0.0, "b1000_people": 0})
+                                 "pct": [0.0] * 15, "ppl": [0] * 15})
         a["shares"] += shares; a["people"] += people
-        if L >= 12:
-            a["b400_pct"] += pct; a["b400_people"] += people
-        if L >= 15:
-            a["b1000_pct"] += pct; a["b1000_people"] += people
+        a["pct"][L - 1] = pct; a["ppl"][L - 1] = people
     out = {}
     for sid, a in agg.items():
+        pct = a["pct"]
+        # b{N} = 分級門檻以上占比；t = 全15級占比(往後可任意門檻)
         out[sid] = {"date": a["date"], "total_zhang": round(a["shares"] / 1000),
-                    "total_people": a["people"], "b400_pct": round(a["b400_pct"], 2),
-                    "b400_people": a["b400_people"], "b1000_pct": round(a["b1000_pct"], 2),
-                    "b1000_people": a["b1000_people"]}
+                    "total_people": a["people"],
+                    "b200_pct": round(sum(pct[10:]), 2), "b400_pct": round(sum(pct[11:]), 2),
+                    "b1000_pct": round(pct[14], 2),
+                    "b400_people": sum(a["ppl"][11:]), "b1000_people": a["ppl"][14],
+                    "t": [round(p, 2) for p in pct]}
     return out
 
 

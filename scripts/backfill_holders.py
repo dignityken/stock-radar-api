@@ -65,8 +65,9 @@ def parse(html):
         if len(c) < 15:
             continue
         out.append({"date": date, "total_zhang": int(num(c[1])), "total_people": int(num(c[2])),
-                    "b400_pct": round(num(c[8]), 2), "b400_people": int(num(c[9])),
-                    "b1000_pct": round(num(c[14]), 2), "b1000_people": int(num(c[13]))})
+                    "b200_pct": round(num(c[5]), 2), "b400_pct": round(num(c[8]), 2),
+                    "b400_people": int(num(c[9])), "b1000_pct": round(num(c[14]), 2),
+                    "b1000_people": int(num(c[13])), "close": num(c[15])})
     return out
 
 

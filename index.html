@@ -412,57 +412,70 @@ $('t3-search-btn').onclick=async()=>{const brName=$('t3-br').value,brInfo=broker
 function switchToT4(sid,brName){$('t4-sid').value=sid;$('t4-br').value=brName||'';document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.querySelector('.nav-btn[data-tab=t4]').classList.add('active');['t1','t2','t3','t4','t5'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');currentTab='t4';drawChart()}
 
 // ── TAB5 集保大戶持股率（當週、自訂張數門檻）──
-let t5Tiers=null,t5Sid='',t5Date='';
+let t5Tiers=null,t5Sid='',t5Date='',t5Weekly=null,t5Chart=null,t5Sel=[];
+function t5BigPct(p,tier){            // 大戶%＝門檻(tier)以上占比
+  if(Array.isArray(p.t)&&p.t.length>=15){let s=0;for(let i=tier-1;i<15;i++)s+=p.t[i];return +s.toFixed(2);}
+  if(tier===11&&p.b200_pct!=null)return p.b200_pct;
+  if(tier===12&&p.b400_pct!=null)return p.b400_pct;
+  if(tier===15&&p.b1000_pct!=null)return p.b1000_pct;
+  return null;                        // 該門檻歷史無資料(backfill 僅 200/400/1000)
+}
+function t5SmallPct(p,tier,big){      // 散戶%＝門檻以下
+  if(Array.isArray(p.t)&&p.t.length>=15){let s=0;for(let i=0;i<tier-1;i++)s+=p.t[i];return +s.toFixed(2);}
+  return big==null?null:+(100-big).toFixed(2);
+}
 async function loadT5(){
-  const sid=$('t5-sid').value.trim().toUpperCase();
-  if(!sid)return;
-  $('t5-status').innerHTML='<div class="loading"><div class="spinner"></div>載入集保股權分散...</div>';$('t5-result').innerHTML='';
-  try{
-    const r=await apiFetch(`/api/stock/holders?sid=${sid}`);
-    t5Tiers=r.tiers;t5Sid=r.sid;t5Date=r.date;$('t5-status').innerHTML='';renderT5();
-  }catch(e){t5Tiers=null;$('t5-status').innerHTML=`<div style="color:var(--red);font-size:.85rem">${e.message}</div>`}
-  loadT5History(sid);
+  const sid=$('t5-sid').value.trim().toUpperCase();if(!sid)return;
+  $('t5-status').innerHTML='<div class="loading"><div class="spinner"></div>載入...</div>';
+  $('t5-result').innerHTML='';$('t5-history').innerHTML='';t5Tiers=null;t5Weekly=null;t5Sel=[];
+  try{const r=await apiFetch(`/api/stock/holders?sid=${sid}`);t5Tiers=r.tiers;t5Sid=r.sid;t5Date=r.date;$('t5-status').innerHTML='';}
+  catch(e){$('t5-status').innerHTML=`<div style="color:var(--red);font-size:.85rem">${e.message}</div>`}
+  try{const res=await fetch(`data/holders/${sid}.json?t=${Date.now()}`);if(res.ok)t5Weekly=((await res.json()).data||[]).filter(p=>p.date)}catch(e){}
+  if(!t5Sid)t5Sid=sid;
+  renderT5();
 }
-let t5Chart=null;
-async function loadT5History(sid){
-  const wrap=$('t5-history');wrap.innerHTML='';
-  if(t5Chart){try{t5Chart.remove()}catch(e){}t5Chart=null}
-  let rec;
-  try{const res=await fetch(`data/holders/${sid}.json?t=${Date.now()}`);if(!res.ok)throw 0;rec=await res.json()}
-  catch(e){wrap.innerHTML='<div style="font-size:.74rem;color:var(--text2)">（尚無歷史週資料；之後每週自動累積、或先用 backfill 腳本補）</div>';return}
-  const data=(rec.data||[]).filter(p=>p.date);
-  if(data.length<2){wrap.innerHTML='<div style="font-size:.74rem;color:var(--text2)">歷史資料不足</div>';return}
-  const fmt=d=>`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
-  wrap.innerHTML=`<div style="font-size:.82rem;font-weight:600;margin-bottom:4px">大戶持股率週線（${data.length} 週）<span style="color:#ef5350">　━ >400張</span><span style="color:#FFA726">　━ >1000張</span></div><div id="t5-chart" style="width:100%;max-width:880px;height:240px"></div>`;
-  const c=LightweightCharts.createChart($('t5-chart'),{layout:{backgroundColor:'#0e1117',textColor:'#d1d4dc'},grid:{vertLines:{visible:false},horzLines:{color:'rgba(255,255,255,.05)'}},rightPriceScale:{borderVisible:false},timeScale:{borderVisible:false},width:$('t5-chart').clientWidth||700,height:240});
-  t5Chart=c;
-  const l4=c.addLineSeries({color:'#ef5350',lineWidth:2,priceLineVisible:false});
-  l4.setData(data.map(p=>({time:fmt(p.date),value:p.b400_pct})));
-  const l1=c.addLineSeries({color:'#FFA726',lineWidth:2,priceLineVisible:false});
-  l1.setData(data.map(p=>({time:fmt(p.date),value:p.b1000_pct})));
-  c.timeScale().fitContent();
-  new ResizeObserver(()=>{if(t5Chart)t5Chart.applyOptions({width:$('t5-chart').clientWidth||700})}).observe($('t5-chart'));
-}
-function renderT5(){
-  if(!t5Tiers){$('t5-result').innerHTML='';return}
+function renderT5(){renderT5Cards();renderT5Weekly();}
+function renderT5Cards(){
+  const wrap=$('t5-result');
+  if(!t5Tiers){wrap.innerHTML='';return}
   const th=parseInt($('t5-tier').value),thLabel=$('t5-tier').selectedOptions[0].textContent;
   let bP=0,bPpl=0,bSh=0,aP=0,aPpl=0,aSh=0;
   t5Tiers.forEach(t=>{aP+=t.pct;aPpl+=t.people;aSh+=t.shares;if(t.tier>=th){bP+=t.pct;bPpl+=t.people;bSh+=t.shares}});
   const sP=Math.max(0,aP-bP),sPpl=aPpl-bPpl,sSh=aSh-bSh;
   const z=n=>Math.round(n/1000).toLocaleString(),dt=t5Date?`${t5Date.slice(0,4)}/${t5Date.slice(4,6)}/${t5Date.slice(6,8)}`:'';
-  const maxPct=Math.max(...t5Tiers.map(t=>t.pct),1);
-  const card=(title,color,pct,ppl,sh)=>`<div style="flex:1;min-width:150px;background:var(--bg3);border:1px solid var(--border);border-left:3px solid ${color};border-radius:6px;padding:10px"><div style="font-size:.8rem;color:var(--text2)">${title}</div><div style="font-size:1.4rem;font-weight:700;color:${color}">${pct.toFixed(2)}%</div><div style="font-size:.74rem;color:var(--text2);margin-top:2px">股東 ${ppl.toLocaleString()} 人｜${z(sh)} 張</div></div>`;
-  let rows='';
-  t5Tiers.forEach(t=>{const big=t.tier>=th;rows+=`<tr style="${big?'background:rgba(239,83,80,.08)':''}"><td style="padding:3px 6px">${t.label}</td><td style="padding:3px 6px;text-align:right">${t.people.toLocaleString()}</td><td style="padding:3px 6px;text-align:right">${z(t.shares)}</td><td style="padding:3px 6px;text-align:right;color:${big?'#ef5350':'var(--text2)'}">${t.pct.toFixed(2)}%</td><td style="padding:3px 6px;width:120px"><div style="height:10px;background:${big?'#ef5350':'#26a69a'};opacity:.7;width:${(t.pct/maxPct*100).toFixed(1)}%;border-radius:2px"></div></td></tr>`});
-  $('t5-result').innerHTML=`
-    <div style="font-size:.8rem;color:var(--text2);margin-bottom:6px">${t5Sid}　集保資料日期：${dt}　（門檻：${thLabel}）</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-      ${card('大戶持股（'+thLabel+'）','#ef5350',bP,bPpl,bSh)}
-      ${card('散戶持股（其餘）','#26a69a',sP,sPpl,sSh)}
-      <div style="flex:1;min-width:150px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px"><div style="font-size:.8rem;color:var(--text2)">總股東人數</div><div style="font-size:1.4rem;font-weight:700">${aPpl.toLocaleString()}</div><div style="font-size:.74rem;color:var(--text2);margin-top:2px">集保總張數 ${z(aSh)} 張</div></div>
-    </div>
-    <table class="vip-table" style="width:100%;max-width:560px"><thead><tr><th style="text-align:left">張數級距</th><th style="text-align:right">人數</th><th style="text-align:right">張數</th><th style="text-align:right">占比</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-    <div style="font-size:.72rem;color:var(--text2);margin-top:6px">註：當週快照（TDCC 集保）。歷史週線將由每週累積後提供。</div>`;
+  const card=(t,c,pct,ppl,sh)=>`<div style="flex:1;min-width:140px;background:var(--bg3);border:1px solid var(--border);border-left:3px solid ${c};border-radius:6px;padding:9px"><div style="font-size:.78rem;color:var(--text2)">${t}</div><div style="font-size:1.3rem;font-weight:700;color:${c}">${pct.toFixed(2)}%</div><div style="font-size:.72rem;color:var(--text2)">股東 ${ppl.toLocaleString()} 人｜${z(sh)} 張</div></div>`;
+  wrap.innerHTML=`<div style="font-size:.78rem;color:var(--text2);margin-bottom:6px">${t5Sid}　當週 ${dt}　門檻 ${thLabel}（大戶＝門檻以上，散戶＝其餘）</div><div style="display:flex;gap:8px;flex-wrap:wrap">${card('大戶持股','#ef5350',bP,bPpl,bSh)}${card('散戶持股','#26a69a',sP,sPpl,sSh)}<div style="flex:1;min-width:140px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:9px"><div style="font-size:.78rem;color:var(--text2)">總股東人數</div><div style="font-size:1.3rem;font-weight:700">${aPpl.toLocaleString()}</div><div style="font-size:.72rem;color:var(--text2)">集保總張數 ${z(aSh)} 張</div></div></div>`;
+}
+function renderT5Weekly(){
+  const wrap=$('t5-history');
+  if(t5Chart){try{t5Chart.remove()}catch(e){}t5Chart=null}
+  if(!t5Weekly||t5Weekly.length<2){wrap.innerHTML='<div style="font-size:.74rem;color:var(--text2);margin-top:10px">尚無歷史週資料（跑 backfill 腳本補、或等每週 V1 累積）</div>';return}
+  const th=parseInt($('t5-tier').value),thLabel=$('t5-tier').selectedOptions[0].textContent,fmt=d=>`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
+  const ser=t5Weekly.map(p=>{const big=t5BigPct(p,th);return{date:p.date,big,small:t5SmallPct(p,th,big),ppl:p.total_people,close:p.close};});
+  wrap.innerHTML=`<div style="font-size:.82rem;font-weight:600;margin:12px 0 4px">大戶/散戶持股率週線（${ser.length} 週，門檻 ${thLabel}）<span style="color:#ef5350">　━ 大戶</span><span style="color:#26a69a">　━ 散戶</span></div><div id="t5-chart" style="width:100%;max-width:900px;height:230px"></div><div id="t5-cmp" style="font-size:.8rem;margin:6px 0;color:var(--accent);min-height:18px"></div><div style="max-height:280px;overflow:auto;max-width:660px;margin-top:2px"><table class="vip-table" style="width:100%"><thead><tr><th style="text-align:left">資料日期</th><th style="text-align:right">大戶%</th><th style="text-align:right">週增減</th><th style="text-align:right">散戶%</th><th style="text-align:right">總股東</th><th style="text-align:right">收盤</th></tr></thead><tbody id="t5-tbody"></tbody></table></div><div style="font-size:.7rem;color:var(--text2);margin-top:4px">點兩列日期＝比較任兩週。歷史%門檻 backfill 僅 200/400/1000；其餘門檻待 V1 往後累積。</div>`;
+  const c=LightweightCharts.createChart($('t5-chart'),{layout:{backgroundColor:'#0e1117',textColor:'#d1d4dc'},grid:{vertLines:{visible:false},horzLines:{color:'rgba(255,255,255,.05)'}},rightPriceScale:{borderVisible:false},timeScale:{borderVisible:false},width:$('t5-chart').clientWidth||700,height:230});
+  t5Chart=c;
+  c.addLineSeries({color:'#ef5350',lineWidth:2,priceLineVisible:false}).setData(ser.filter(s=>s.big!=null).map(s=>({time:fmt(s.date),value:s.big})));
+  c.addLineSeries({color:'#26a69a',lineWidth:2,priceLineVisible:false}).setData(ser.filter(s=>s.small!=null).map(s=>({time:fmt(s.date),value:s.small})));
+  c.timeScale().fitContent();
+  new ResizeObserver(()=>{if(t5Chart)t5Chart.applyOptions({width:$('t5-chart').clientWidth||700})}).observe($('t5-chart'));
+  let html='';
+  for(let i=ser.length-1;i>=0;i--){const s=ser[i],prev=ser[i-1];
+    const d=(s.big!=null&&prev&&prev.big!=null)?(s.big-prev.big):null;
+    const dc=d==null?'var(--text2)':(d>0?'#ef5350':d<0?'#26a69a':'var(--text2)');
+    html+=`<tr data-date="${s.date}" style="cursor:pointer"><td style="padding:3px 6px">${fmt(s.date)}</td><td style="padding:3px 6px;text-align:right">${s.big==null?'—':s.big.toFixed(2)}</td><td style="padding:3px 6px;text-align:right;color:${dc}">${d==null?'—':(d>0?'+':'')+d.toFixed(2)}</td><td style="padding:3px 6px;text-align:right">${s.small==null?'—':s.small.toFixed(2)}</td><td style="padding:3px 6px;text-align:right">${(s.ppl||0).toLocaleString()}</td><td style="padding:3px 6px;text-align:right">${s.close!=null?s.close:'—'}</td></tr>`;}
+  $('t5-tbody').innerHTML=html;
+  $('t5-tbody').querySelectorAll('tr').forEach(tr=>tr.onclick=()=>t5PickWeek(tr.dataset.date,ser,fmt));
+}
+function t5PickWeek(date,ser,fmt){
+  const i=t5Sel.indexOf(date);
+  if(i>=0)t5Sel.splice(i,1);else{t5Sel.push(date);if(t5Sel.length>2)t5Sel.shift()}
+  $('t5-tbody').querySelectorAll('tr').forEach(tr=>tr.style.background=t5Sel.includes(tr.dataset.date)?'rgba(41,98,255,.18)':'');
+  if(t5Sel.length===2){
+    const x=ser.find(s=>s.date===t5Sel[0]),y=ser.find(s=>s.date===t5Sel[1]),[e,l]=x.date<y.date?[x,y]:[y,x];
+    const db=(e.big!=null&&l.big!=null)?(l.big-e.big):null,dp=(l.ppl||0)-(e.ppl||0);
+    $('t5-cmp').innerHTML=`比較 ${fmt(e.date)} → ${fmt(l.date)}：大戶% ${db==null?'—':(db>0?'+':'')+db.toFixed(2)+'%'}　總股東 ${dp>0?'+':''}${dp.toLocaleString()} 人`;
+  }else $('t5-cmp').innerHTML='';
 }
 $('t5-query-btn').onclick=loadT5;
 $('t5-sid').addEventListener('keydown',e=>{if(e.key==='Enter')loadT5()});
