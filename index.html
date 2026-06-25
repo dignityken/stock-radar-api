@@ -388,7 +388,7 @@ async function initApp(){
   adjPad();new ResizeObserver(adjPad).observe(document.querySelector('.sidebar'));window.addEventListener('resize',adjPad);
   if(userRole==='vip')initMobileVipPanel();
   const ocb=$('vip-overlay-close');if(ocb)ocb.onclick=()=>{const o=$('vip-overlay');o.classList.remove('open');o.style.display=''};
-  document.querySelectorAll('.nav-btn').forEach(btn=>{btn.onclick=()=>{document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');const tab=btn.dataset.tab;currentTab=tab;['t1','t2','t3','t4'].forEach(t=>{$('tab-'+t).style.display=t===tab?'':'none'})}});
+  document.querySelectorAll('.nav-btn').forEach(btn=>{btn.onclick=()=>{document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');const tab=btn.dataset.tab;currentTab=tab;['t1','t2','t3','t4','t5'].forEach(t=>{$('tab-'+t).style.display=t===tab?'':'none'})}});
 }
 
 // ── BROKER SELECTS ──
