@@ -332,11 +332,23 @@ tr:hover td{background:rgba(255,255,255,.03)}
         <div class="chart-controls">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%">
             <input type="text" id="t5-sid" placeholder="股票代號" value="1216" style="width:90px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem">
-            <label style="font-size:.8rem;color:var(--text2)">大戶門檻</label>
-            <select id="t5-tier" style="width:110px;padding:6px 4px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.82rem">
-              <option value="11">≥200張</option><option value="12" selected>≥400張</option><option value="15">≥1000張</option>
-            </select>
             <button class="btn-search" id="t5-query-btn" style="padding:6px 14px">🔍 查詢</button>
+          </div>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:8px">
+            <div style="display:flex;gap:5px;align-items:center">
+              <span style="color:#ef5350;font-weight:600;font-size:.82rem">大戶</span>
+              <input type="range" id="t5-big-lo" min="1" max="15" value="12" style="width:84px;accent-color:#ef5350">
+              <span style="color:var(--text2)">~</span>
+              <input type="range" id="t5-big-hi" min="1" max="15" value="15" style="width:84px;accent-color:#ef5350">
+              <span id="t5-big-lbl" style="font-size:.74rem;color:#ef5350;min-width:128px"></span>
+            </div>
+            <div style="display:flex;gap:5px;align-items:center">
+              <span style="color:#26a69a;font-weight:600;font-size:.82rem">散戶</span>
+              <input type="range" id="t5-small-lo" min="1" max="15" value="1" style="width:84px;accent-color:#26a69a">
+              <span style="color:var(--text2)">~</span>
+              <input type="range" id="t5-small-hi" min="1" max="15" value="11" style="width:84px;accent-color:#26a69a">
+              <span id="t5-small-lbl" style="font-size:.74rem;color:#26a69a;min-width:128px"></span>
+            </div>
           </div>
         </div>
         <div id="t5-status"></div>
@@ -411,18 +423,25 @@ $('t3-search-btn').onclick=async()=>{const brName=$('t3-br').value,brInfo=broker
 // ── TAB4 ──
 function switchToT4(sid,brName){$('t4-sid').value=sid;$('t4-br').value=brName||'';document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.querySelector('.nav-btn[data-tab=t4]').classList.add('active');['t1','t2','t3','t4','t5'].forEach(t=>$('tab-'+t).style.display=t==='t4'?'':'none');currentTab='t4';drawChart()}
 
-// ── TAB5 集保大戶持股率（當週、自訂張數門檻）──
+// ── TAB5 集保大戶/散戶（雙範圍拉霸）──
+const T5_LBL=['<1張','1~5張','5~10張','10~15張','15~20張','20~30張','30~40張','40~50張','50~100張','100~200張','200~400張','400~600張','600~800張','800~1000張','>1000張'];
 let t5Tiers=null,t5Sid='',t5Date='',t5Weekly=null,t5Chart=null,t5Sel=[];
-function t5BigPct(p,tier){            // 大戶%＝門檻(tier)以上占比
-  if(Array.isArray(p.t)&&p.t.length>=15){let s=0;for(let i=tier-1;i<15;i++)s+=p.t[i];return +s.toFixed(2);}
-  if(tier===11&&p.b200_pct!=null)return p.b200_pct;
-  if(tier===12&&p.b400_pct!=null)return p.b400_pct;
-  if(tier===15&&p.b1000_pct!=null)return p.b1000_pct;
-  return null;                        // 該門檻歷史無資料(backfill 僅 200/400/1000)
+function t5Ranges(){
+  let bl=+$('t5-big-lo').value,bh=+$('t5-big-hi').value,sl=+$('t5-small-lo').value,sh=+$('t5-small-hi').value;
+  if(bl>bh)[bl,bh]=[bh,bl]; if(sl>sh)[sl,sh]=[sh,sl];
+  return {bl,bh,sl,sh};
 }
-function t5SmallPct(p,tier,big){      // 散戶%＝門檻以下
-  if(Array.isArray(p.t)&&p.t.length>=15){let s=0;for(let i=0;i<tier-1;i++)s+=p.t[i];return +s.toFixed(2);}
-  return big==null?null:+(100-big).toFixed(2);
+function updateT5Labels(){
+  const {bl,bh,sl,sh}=t5Ranges();
+  $('t5-big-lbl').textContent=T5_LBL[bl-1]+' ~ '+T5_LBL[bh-1];
+  $('t5-small-lbl').textContent=T5_LBL[sl-1]+' ~ '+T5_LBL[sh-1];
+}
+function t5RangePct(p,lo,hi){          // 該週 [lo,hi] 級距占比加總
+  if(Array.isArray(p.t)&&p.t.length>=15){let s=0;for(let i=lo-1;i<hi;i++)s+=(p.t[i]||0);return +s.toFixed(2);}
+  const thr=t=>t===11?p.b200_pct:t===12?p.b400_pct:t===15?p.b1000_pct:undefined;  // backfill 僅這三個門檻
+  if(hi===15){const v=thr(lo);if(v!=null)return v;}                  // ≥lo
+  if(lo===1){const v=thr(hi+1);if(v!=null)return +(100-v).toFixed(2);} // <hi+1
+  return null;
 }
 async function loadT5(){
   const sid=$('t5-sid').value.trim().toUpperCase();if(!sid)return;
@@ -434,25 +453,24 @@ async function loadT5(){
   if(!t5Sid)t5Sid=sid;
   renderT5();
 }
-function renderT5(){renderT5Cards();renderT5Weekly();}
+function renderT5(){updateT5Labels();renderT5Cards();renderT5Weekly();}
 function renderT5Cards(){
   const wrap=$('t5-result');
   if(!t5Tiers){wrap.innerHTML='';return}
-  const th=parseInt($('t5-tier').value),thLabel=$('t5-tier').selectedOptions[0].textContent;
-  let bP=0,bPpl=0,bSh=0,aP=0,aPpl=0,aSh=0;
-  t5Tiers.forEach(t=>{aP+=t.pct;aPpl+=t.people;aSh+=t.shares;if(t.tier>=th){bP+=t.pct;bPpl+=t.people;bSh+=t.shares}});
-  const sP=Math.max(0,aP-bP),sPpl=aPpl-bPpl,sSh=aSh-bSh;
+  const {bl,bh,sl,sh}=t5Ranges();
+  const sumR=(lo,hi,k)=>{let v=0;t5Tiers.forEach(t=>{if(t.tier>=lo&&t.tier<=hi)v+=t[k]});return v;};
+  let aPpl=0,aSh=0;t5Tiers.forEach(t=>{aPpl+=t.people;aSh+=t.shares});
   const z=n=>Math.round(n/1000).toLocaleString(),dt=t5Date?`${t5Date.slice(0,4)}/${t5Date.slice(4,6)}/${t5Date.slice(6,8)}`:'';
-  const card=(t,c,pct,ppl,sh)=>`<div style="flex:1;min-width:140px;background:var(--bg3);border:1px solid var(--border);border-left:3px solid ${c};border-radius:6px;padding:9px"><div style="font-size:.78rem;color:var(--text2)">${t}</div><div style="font-size:1.3rem;font-weight:700;color:${c}">${pct.toFixed(2)}%</div><div style="font-size:.72rem;color:var(--text2)">股東 ${ppl.toLocaleString()} 人｜${z(sh)} 張</div></div>`;
-  wrap.innerHTML=`<div style="font-size:.78rem;color:var(--text2);margin-bottom:6px">${t5Sid}　當週 ${dt}　門檻 ${thLabel}（大戶＝門檻以上，散戶＝其餘）</div><div style="display:flex;gap:8px;flex-wrap:wrap">${card('大戶持股','#ef5350',bP,bPpl,bSh)}${card('散戶持股','#26a69a',sP,sPpl,sSh)}<div style="flex:1;min-width:140px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:9px"><div style="font-size:.78rem;color:var(--text2)">總股東人數</div><div style="font-size:1.3rem;font-weight:700">${aPpl.toLocaleString()}</div><div style="font-size:.72rem;color:var(--text2)">集保總張數 ${z(aSh)} 張</div></div></div>`;
+  const card=(t,c,lo,hi)=>`<div style="flex:1;min-width:150px;background:var(--bg3);border:1px solid var(--border);border-left:3px solid ${c};border-radius:6px;padding:9px"><div style="font-size:.78rem;color:var(--text2)">${t}（${T5_LBL[lo-1]}~${T5_LBL[hi-1]}）</div><div style="font-size:1.3rem;font-weight:700;color:${c}">${sumR(lo,hi,'pct').toFixed(2)}%</div><div style="font-size:.72rem;color:var(--text2)">股東 ${sumR(lo,hi,'people').toLocaleString()} 人｜${z(sumR(lo,hi,'shares'))} 張</div></div>`;
+  wrap.innerHTML=`<div style="font-size:.78rem;color:var(--text2);margin-bottom:6px">${t5Sid}　當週 ${dt}</div><div style="display:flex;gap:8px;flex-wrap:wrap">${card('大戶持股','#ef5350',bl,bh)}${card('散戶持股','#26a69a',sl,sh)}<div style="flex:1;min-width:150px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:9px"><div style="font-size:.78rem;color:var(--text2)">總股東人數</div><div style="font-size:1.3rem;font-weight:700">${aPpl.toLocaleString()}</div><div style="font-size:.72rem;color:var(--text2)">集保總張數 ${z(aSh)} 張</div></div></div>`;
 }
 function renderT5Weekly(){
   const wrap=$('t5-history');
   if(t5Chart){try{t5Chart.remove()}catch(e){}t5Chart=null}
   if(!t5Weekly||t5Weekly.length<2){wrap.innerHTML='<div style="font-size:.74rem;color:var(--text2);margin-top:10px">尚無歷史週資料（跑 backfill 腳本補、或等每週 V1 累積）</div>';return}
-  const th=parseInt($('t5-tier').value),thLabel=$('t5-tier').selectedOptions[0].textContent,fmt=d=>`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
-  const ser=t5Weekly.map(p=>{const big=t5BigPct(p,th);return{date:p.date,big,small:t5SmallPct(p,th,big),ppl:p.total_people,close:p.close};});
-  wrap.innerHTML=`<div style="font-size:.82rem;font-weight:600;margin:12px 0 4px">大戶/散戶持股率週線（${ser.length} 週，門檻 ${thLabel}）<span style="color:#ef5350">　━ 大戶</span><span style="color:#26a69a">　━ 散戶</span></div><div id="t5-chart" style="width:100%;max-width:900px;height:230px"></div><div id="t5-cmp" style="font-size:.8rem;margin:6px 0;color:var(--accent);min-height:18px"></div><div style="max-height:280px;overflow:auto;max-width:660px;margin-top:2px"><table class="vip-table" style="width:100%"><thead><tr><th style="text-align:left">資料日期</th><th style="text-align:right">大戶%</th><th style="text-align:right">週增減</th><th style="text-align:right">散戶%</th><th style="text-align:right">總股東</th><th style="text-align:right">收盤</th></tr></thead><tbody id="t5-tbody"></tbody></table></div><div style="font-size:.7rem;color:var(--text2);margin-top:4px">點兩列日期＝比較任兩週。歷史%門檻 backfill 僅 200/400/1000；其餘門檻待 V1 往後累積。</div>`;
+  const {bl,bh,sl,sh}=t5Ranges(),fmt=d=>`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
+  const ser=t5Weekly.map(p=>({date:p.date,big:t5RangePct(p,bl,bh),small:t5RangePct(p,sl,sh),ppl:p.total_people,close:p.close}));
+  wrap.innerHTML=`<div style="font-size:.82rem;font-weight:600;margin:12px 0 4px">大戶/散戶持股率週線（${ser.length} 週）<span style="color:#ef5350">　━ 大戶 ${T5_LBL[bl-1]}~${T5_LBL[bh-1]}</span><span style="color:#26a69a">　━ 散戶 ${T5_LBL[sl-1]}~${T5_LBL[sh-1]}</span></div><div id="t5-chart" style="width:100%;max-width:900px;height:230px"></div><div id="t5-cmp" style="font-size:.8rem;margin:6px 0;color:var(--accent);min-height:18px"></div><div style="max-height:280px;overflow:auto;max-width:660px;margin-top:2px"><table class="vip-table" style="width:100%"><thead><tr><th style="text-align:left">資料日期</th><th style="text-align:right">大戶%</th><th style="text-align:right">週增減</th><th style="text-align:right">散戶%</th><th style="text-align:right">總股東</th><th style="text-align:right">收盤</th></tr></thead><tbody id="t5-tbody"></tbody></table></div><div style="font-size:.7rem;color:var(--text2);margin-top:4px">點兩列日期＝比較任兩週。歷史拉霸僅 200/400/1000 邊界有值；其餘範圍待 V1 往後累積全15級。</div>`;
   const c=LightweightCharts.createChart($('t5-chart'),{layout:{backgroundColor:'#0e1117',textColor:'#d1d4dc'},grid:{vertLines:{visible:false},horzLines:{color:'rgba(255,255,255,.05)'}},rightPriceScale:{borderVisible:false},timeScale:{borderVisible:false},width:$('t5-chart').clientWidth||700,height:230});
   t5Chart=c;
   c.addLineSeries({color:'#ef5350',lineWidth:2,priceLineVisible:false}).setData(ser.filter(s=>s.big!=null).map(s=>({time:fmt(s.date),value:s.big})));
@@ -479,7 +497,8 @@ function t5PickWeek(date,ser,fmt){
 }
 $('t5-query-btn').onclick=loadT5;
 $('t5-sid').addEventListener('keydown',e=>{if(e.key==='Enter')loadT5()});
-$('t5-tier').onchange=renderT5;
+['t5-big-lo','t5-big-hi','t5-small-lo','t5-small-hi'].forEach(id=>$(id).addEventListener('input',()=>{updateT5Labels();if(t5Tiers||t5Weekly)renderT5()}));
+updateT5Labels();
 $('t4-draw-btn').onclick=drawChart;
 // 副圖高度切換（v3.8 overlay 軸無法拖曳縮放，改用刻度邊界即時調整下方三副圖比例）
 let indLayout='std';
