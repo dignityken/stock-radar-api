@@ -425,7 +425,7 @@ function switchToT4(sid,brName){$('t4-sid').value=sid;$('t4-br').value=brName||'
 
 // ── TAB5 集保大戶/散戶（雙範圍拉霸）──
 const T5_LBL=['<1張','1~5張','5~10張','10~15張','15~20張','20~30張','30~40張','40~50張','50~100張','100~200張','200~400張','400~600張','600~800張','800~1000張','>1000張'];
-let t5Tiers=null,t5Sid='',t5Date='',t5Weekly=null,t5Chart=null,t5Sel=[];
+let t5Tiers=null,t5Sid='',t5Date='',t5Weekly=null,t5Chart=null,t5Sel=[],t5KlineWk=null;
 function t5Ranges(){
   let bl=+$('t5-big-lo').value,bh=+$('t5-big-hi').value,sl=+$('t5-small-lo').value,sh=+$('t5-small-hi').value;
   if(bl>bh)[bl,bh]=[bh,bl]; if(sl>sh)[sl,sh]=[sh,sl];
@@ -451,6 +451,14 @@ async function loadT5(){
   catch(e){$('t5-status').innerHTML=`<div style="color:var(--red);font-size:.85rem">${e.message}</div>`}
   try{const res=await fetch(`data/holders/${sid}.json?t=${Date.now()}`);if(res.ok)t5Weekly=((await res.json()).data||[]).filter(p=>p.date)}catch(e){}
   if(!t5Sid)t5Sid=sid;
+  t5KlineWk=null;                       // 週K線(複製Tab4的resample/BB)，快取後拖拉霸不重抓
+  try{
+    const k=await apiFetch(`/api/stock/kline?sid=${sid}&start=2024-06-01&interval=1d`);
+    let m=(k.data||[]).map(d=>({date:d.Date,open:d.Open,high:d.High,low:d.Low,close:d.Close,vol:0}));
+    m=resampleWeekly(m); m=calcBB(m,20,2);
+    const first=t5Weekly&&t5Weekly.length?`${t5Weekly[0].date.slice(0,4)}-${t5Weekly[0].date.slice(4,6)}-${t5Weekly[0].date.slice(6,8)}`:'';
+    t5KlineWk=first?m.filter(d=>d.date>=first):m;
+  }catch(e){t5KlineWk=null}
   renderT5();
 }
 function renderT5(){updateT5Labels();renderT5Cards();renderT5Weekly();}
@@ -470,11 +478,26 @@ function renderT5Weekly(){
   if(!t5Weekly||t5Weekly.length<2){wrap.innerHTML='<div style="font-size:.74rem;color:var(--text2);margin-top:10px">尚無歷史週資料（跑 backfill 腳本補、或等每週 V1 累積）</div>';return}
   const {bl,bh,sl,sh}=t5Ranges(),fmt=d=>`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
   const ser=t5Weekly.map(p=>({date:p.date,big:t5RangePct(p,bl,bh),small:t5RangePct(p,sl,sh),ppl:p.total_people,close:p.close}));
-  wrap.innerHTML=`<div style="font-size:.82rem;font-weight:600;margin:12px 0 4px">大戶/散戶持股率週線（${ser.length} 週）<span style="color:#ef5350">　━ 大戶 ${T5_LBL[bl-1]}~${T5_LBL[bh-1]}</span><span style="color:#26a69a">　━ 散戶 ${T5_LBL[sl-1]}~${T5_LBL[sh-1]}</span></div><div id="t5-chart" style="width:100%;max-width:900px;height:230px"></div><div id="t5-cmp" style="font-size:.8rem;margin:6px 0;color:var(--accent);min-height:18px"></div><div style="max-height:280px;overflow:auto;max-width:660px;margin-top:2px"><table class="vip-table" style="width:100%"><thead><tr><th style="text-align:left">資料日期</th><th style="text-align:right">大戶%</th><th style="text-align:right">週增減</th><th style="text-align:right">散戶%</th><th style="text-align:right">總股東</th><th style="text-align:right">收盤</th></tr></thead><tbody id="t5-tbody"></tbody></table></div><div style="font-size:.7rem;color:var(--text2);margin-top:4px">點兩列日期＝比較任兩週。歷史拉霸僅 200/400/1000 邊界有值；其餘範圍待 V1 往後累積全15級。</div>`;
-  const c=LightweightCharts.createChart($('t5-chart'),{layout:{backgroundColor:'#0e1117',textColor:'#d1d4dc'},grid:{vertLines:{visible:false},horzLines:{color:'rgba(255,255,255,.05)'}},rightPriceScale:{borderVisible:false},timeScale:{borderVisible:false},width:$('t5-chart').clientWidth||700,height:230});
+  wrap.innerHTML=`<div style="font-size:.82rem;font-weight:600;margin:12px 0 4px">週K線 + 大戶/散戶持股率（${ser.length} 週）<span style="color:#ef5350">　▦ 大戶 ${T5_LBL[bl-1]}~${T5_LBL[bh-1]}</span><span style="color:#26a69a">　▦ 散戶 ${T5_LBL[sl-1]}~${T5_LBL[sh-1]}</span></div><div id="t5-chart" style="width:100%;max-width:920px;height:440px"></div><div id="t5-cmp" style="font-size:.8rem;margin:6px 0;color:var(--accent);min-height:18px"></div><div style="max-height:280px;overflow:auto;max-width:660px;margin-top:2px"><table class="vip-table" style="width:100%"><thead><tr><th style="text-align:left">資料日期</th><th style="text-align:right">大戶%</th><th style="text-align:right">週增減</th><th style="text-align:right">散戶%</th><th style="text-align:right">總股東</th><th style="text-align:right">收盤</th></tr></thead><tbody id="t5-tbody"></tbody></table></div><div style="font-size:.7rem;color:var(--text2);margin-top:4px">點兩列日期＝比較任兩週。歷史拉霸僅 200/400/1000 邊界有值；其餘範圍待 V1 往後累積全15級。</div>`;
+  const c=LightweightCharts.createChart($('t5-chart'),{layout:{backgroundColor:'#0e1117',textColor:'#d1d4dc'},grid:{vertLines:{visible:false},horzLines:{color:'rgba(255,255,255,.05)'}},rightPriceScale:{borderVisible:false},timeScale:{borderVisible:false},width:$('t5-chart').clientWidth||700,height:440});
   t5Chart=c;
-  c.addLineSeries({color:'#ef5350',lineWidth:2,priceLineVisible:false}).setData(ser.filter(s=>s.big!=null).map(s=>({time:fmt(s.date),value:s.big})));
-  c.addLineSeries({color:'#26a69a',lineWidth:2,priceLineVisible:false}).setData(ser.filter(s=>s.small!=null).map(s=>({time:fmt(s.date),value:s.small})));
+  // 上：週K線+布林（複製Tab4）
+  if(t5KlineWk&&t5KlineWk.length){
+    const ks=c.addCandlestickSeries({upColor:'#ef5350',downColor:'#26a69a',borderVisible:false,wickUpColor:'#ef5350',wickDownColor:'#26a69a',priceLineVisible:false,lastValueVisible:false});
+    ks.setData(t5KlineWk.map(d=>({time:d.date,open:d.open,high:d.high,low:d.low,close:d.close})));
+    [['bb_mid','#FFD600'],['bb_up','rgba(255,255,255,.3)'],['bb_dn','rgba(255,255,255,.3)']].forEach(([k,col])=>{
+      const s=c.addLineSeries({color:col,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+      s.setData(t5KlineWk.filter(d=>d[k]!=null).map(d=>({time:d.date,value:d[k]})));});
+  }
+  c.priceScale('right').applyOptions({scaleMargins:{top:0.03,bottom:0.52}});
+  // 中：大戶副圖
+  const lb=c.addLineSeries({color:'#ef5350',lineWidth:2,priceScaleId:'big',priceLineVisible:false,lastValueVisible:true});
+  lb.setData(ser.filter(s=>s.big!=null).map(s=>({time:fmt(s.date),value:s.big})));
+  c.priceScale('big').applyOptions({scaleMargins:{top:0.50,bottom:0.26}});
+  // 下：散戶副圖
+  const ls=c.addLineSeries({color:'#26a69a',lineWidth:2,priceScaleId:'small',priceLineVisible:false,lastValueVisible:true});
+  ls.setData(ser.filter(s=>s.small!=null).map(s=>({time:fmt(s.date),value:s.small})));
+  c.priceScale('small').applyOptions({scaleMargins:{top:0.76,bottom:0.02}});
   c.timeScale().fitContent();
   new ResizeObserver(()=>{if(t5Chart)t5Chart.applyOptions({width:$('t5-chart').clientWidth||700})}).observe($('t5-chart'));
   let html='';
